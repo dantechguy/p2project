@@ -1,0 +1,31 @@
+Dan Wendon-Blixrud (drw48) Dissertation Log
+
+= 2023/10/20 (3 hours)
+Setup local and github git repos for proposal, dissertation, and code. Have a local Typst compiler and vscode extension for writing the dissertation.
+
+I need to create a skeleton of my dissertation. The basic outline is fixed:
+- Cover page
+- Declaration of originality
+- Proforma
+- Table of contents
+- Chapter 1: Introduction
+- Chapter 2: Preparation
+- Chapter 3: Implementation
+- Chapter 4: Evaluation
+- Chapter 5: Conclusions
+- Bibliography
+- Appendices
+- Index
+- Project Proposal
+
+Within each section I need to plan the structure: "a graph here, analysis here" etc.
+
+= 2023/10/21 (1 hour)
+There's an issue with XCode 15.0.0 which causes macos builds to fail. Progress logged https://github.com/flutter/flutter/issues/135277. Will build for web while waiting.
+
+Have written a basic implementation of the envstate `Env` object, a basic renderer for the envstate, and a basic arrow key detection widget. 
+
+Next job is to combine them into the app and see if they all work as expected.
+
+= 2023/10/22 (1 hour)
+Got the inputs all working: arrow keys are detected. Rendering works as expected, cars are in the correct place, with the correct colour, size, and rotation.
