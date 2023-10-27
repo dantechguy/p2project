@@ -29,3 +29,115 @@ Next job is to combine them into the app and see if they all work as expected.
 
 = 2023/10/22 (1 hour)
 Got the inputs all working: arrow keys are detected. Rendering works as expected, cars are in the correct place, with the correct colour, size, and rotation.
+
+Excellent, UI and Driver core is finished. The cars and grass look terrible. There is no track, but that will be very quick to implement rendering for, and it's worth me waiting until I know it will be implemented to then render it too.
+
+2023-10-22-18-29-first_render_and_input_test.png
+
+= 2023/10/23 (2 hours coding, 1h thinking)
+Currently creating the Env state and how it handles and stores user inputs. Needed to know if user latency information was going to be stored in the Env object or in the client only as a current value. The way you know?: do you need it when re-computing old values, and does it need to be synchronised across all clients?
+
+In this case you don't, as latencies are only needed for CSP. But in the future work where you may do individual client truth computation (for scanline hits) then you may need this information, to know the state of each client at a particular point in time.
+
+Another question is, do you need to store the list of users in the Env state? Are we expecting and do we need to support clients to frequently join and leave? I think yes, we will need expect and support this. But what should happen if a user leaves? Does their vehicle just disappear? Or can they reconnect and retain state. 
+|
+If they lose state then the user field can be removed, but if state is retained then it must be kept. And what if a new user joins part way through? Is this allowed, and they're given a new car with fresh state? Or are they not allowed to join?
+
+For the sake of this demonstration, I think user's should retain state, and new users should be allowed to join. But in the real game, users should only be allowed to join at the start. Retaining state gives us the potential to use the Re-Connection Extension. Not all games would need this, for example in a `.io` game, each individual game is of little consequence, so deleting a player on disconnection is common.
+
+At the moment the `UserInput` objects use a double for steer and accelerate amounts. At some point these will need to be made cheat-proof, either at compile time (with specific clamped classes) or at runtime.
+
+
+Another decision I've made is that Env objects aren't immutable. They are treated as immutable, but the internal driver code modifies the env object you give it. The exposed driver code then copies the passed env, and then runs the internal driver which modifies the copy.
+|
+I've done this anticipating that it will be beneficial for performance. I would have made all of the classes immutable, but it makes updating values very painful, because dart doesn't support easy built in dataclasses.
+|
+Once the overall structure is more fixed and understood, I may go through and make the dataclasses immutable.
+|
+I also want to make the updates happen like OCaml functional objects work. It means that they are all immutable, and updates are maximally efficient. If one part of the tree must change, then the only objects that must be re-created are all the ancestor objects of the updated part, up to the root. This may end up being the most efficient method.
+
+Also, with some foresight on the efficient dependency computation, this easy updating may become critical for performance.
+
+
+To know how best to integrate and design the engine tick system with Flutter, I'm reading through the source code for another game engine called Flame (https://github.com/flame-engine/flame/blob/main/packages/flame/lib/src/game/game_render_box.dart).
+|
+This github issue shines some light on some of the design decisions. https://github.com/flame-engine/flame/issues/294. I think a CustomPainter should be sufficient, I just need to think about the update control flow works. With CustomPainter, you are not in control of when you re-render. You simply write a function which returns whether you *should* re-render. This means that updates to the internal engine and state cannot be initiated by the render function.
+|
+But it can still be initiated by a ticker. So engine updates triggered by a Ticker, and re-painting with the CustomPainter be handled separately and asynchronously. You could have CSP and interpolation be triggered by the CustomPainter, as none of that computation is part of the core engine tick and can be done for any. AH NO THIS IS WRONG!
+|
+Extrapolation and interpolation cannot be triggered by rendering, as they can update based on time elapsed, and the rendering needs to ask *these* modules if anything has happened since last time and if any updates need to be drawn. The engine needs to tell the renderer if updates need to be drawn.
+|
+But, the interpolation and extrapolation modules can be triggered independently of the core layers. This is because of the different inputs. I already have drawn out what the different core modules' layers' inputs are. They need to be updated when any of the inputs change.
+- Core event merger - inputs: latency cutoff, new events, state step function
+- Unstable event executor - inputs: state step function
+- CSP extrapolator - inputs: clock ticks, state predictor function
+- Interpolator - inputs: clock ticks, state interpolator function
+
+Just noticed, but in its current state, the CSP extrapolator isn't doing anything. It's supposed to simulate individual cars which haven't had an input update in a while, but given the local user will always have events up until the current point, the unstable-event-executor will do the job of the CSP extrapolator automatically.
+|
+This begs the question, will users send a list of their inputs for every engine tick? Or just when the inputs change? I feel like for the sake of efficiency, it should really be just when they change.
+|
+So perhaps the unstable event executor and CSP module should be the same thing? Really all the CSP module is, is a function to predict what the other clients' events and inputs will be during the unstable period. No module should simulate further than the unstable executor, as it computes environments up to the current point in time, so CSP must be done simulatenously.
+|
+Now the question is, given clients only send events on input changes, how do we know when to start predicting from? We don't know if an event packet is delayed, or if they just haven't made any changes to their inputs. Unless we have clients send inputs for every tick, we won't know. But sending just on changes is good, as if we switch to a non-tick system (continuous instead) then just on updates will be necessary.
+|
+So given we just send events on input change, the CSP module will simply have to extrapolate from the last event received from every other client.
+
+= 2023/10/25
+Work on Blitz renderer, I need to fix the infinite recursion bug with splitting tris on the camera plane. My hypothesis is that after a tri has been split into three, at least one of the three new tris is also considered to lie 'on' the camera plane, and therefore being split itself.
+
+= 2023/10/27
+I've been ill twice over the past two weeks, so progress has been less than expected.
+
+The reason I the CSP module I had before was unnecessary was because you get CSP for free with the existing modules. This is because other users' events are inserted into the execution timeline when they *should* have been received, not when they actually were received. And then the unstable executor runs everyone's cars up to the current tick, so everyone is in some predicted position. The latency between two players is essentially a time delay behind which the other player's events are inserted into the timeline.
+
+Then you just have the interpolation module at the end, which smoothes things over. Perfect. There is no re-computation optimisation in the core module because it does no re-computation. Its baked state is immutable because it has passed the latency cutoff. All recomp optimisation is in the unstable executor / CSP module (which we now know are the same thing).
+|
+The uncertainty here is that, if no events are received for ages, the core module baked state never changes, because its only input is events, not the tick clock. The unstable module just gets bigger and bigger. The question is *should* the baked state update? Because after the latency cutoff the state won't change. One thought is that tick updates could be treated as events in the core module - which would make state get baked in. But then if all games would build this on top, surely it should just be built in? And where would the tick events originate from?
+|
+The only requirement for consistency between all clients is that they all receive the same events, in the end. So regardless of if the events come from the server or locally from the client, as long as they converge, it's okay. Therefore the tick events could originate from the clients, as they are completely deterministic.
+|
+I guess the two assumptions you could be making to argue for/against ticks as events is
+(1) The core module should bake state whenever the environment updates (aka every tick).
+(2) The core module should bake state whenever an input which deviates execution from how it would have gone is received (aka on user input).
+For some reason I was implicitly thinking that option 2 was best. Why? It does require you to have an additional layer of fast-forwarding. But I think option 1 makes sense. Whether I thought it or not, the game driver was essentially dealing with implicit tick events anyway. Explicit tick events just make it more obvious where the 
+
+Should the core module allow you to retrieve the state of any time (in the past and future)? This broad interface makes it easier for Re-Connection Extension which requires a stable state at a timestamp determined by the server to be uploaded for consistency checking and saving.
+|
+But then should it also run into the future? This would remove the job of the CSP module. The tick events required (if we go with that) could be inputted to the system infinitely ahead of time, so that wouldn't be a problem.
+|
+If the only reason for the core module to be able to return any time in the past is for the sake of upstreaming past baked states, then there's no need to expose this and it can be an implementation detail. The question is, would the *user* need to access this? Almost definitely not. They just want the most up-to-date game state to render and process.
+
+Do we want to build the Re-Computation Extension 'on top' of the existing core module? I.e. use the game event objects? Surely not, it should be built with its own meta protocol..? But it could usefully rely on some latency cutoff guarantees, to ensure that the client returns the baked state before sending any new inputs. So, if we need to engrain the baked state upstreaming alongside event timestamps, then the protocols need to be entwined. So it cannot be separate, but still, should it be built 'on top'?
+|
+This is not a game event, and so should be processed by the core module and not leave and be processed by the user's custom game driver. Regardless of how its implemented, it is a meta-event.
+
+When it comes to thinking of examples, its not helpful to think of 2 player games. At least not with TCP. This is because the unstable period is useful because of differing player latencies. With UDP though it can still be useful.
+
+New issue! Before I was implicitly thinking that the old unstable module was computationally tick-bound and the old CSP module was computationally un-tick-bound (before they were merged). To be tick-bound means that you only compute in tick sized steps, but un-tickbound means that the computations are continuous (rather than discrete Euler approximations). Ideally none of it would be tick-bound, because it would lead to better results, but things like collisions get hairy I think.
+|
+    I think figuring out how to implement a tick-less physics engine with collision is a half-dissertation in itself, so the best thing we can do here is ensure that our system allows for both ticked and tickless engines equally well.
+    |
+    In a tickless system you compute the current motion arc for all objects, and at what point some objects collide to change some motion arcs. Then either when that time arrives, or an input is received, the motion arcs are re-calculated, and this loop repeats. How does this relate to our previous assumption about when to bake environment values into the core module? If we went with option 1, then we should bake whenever the environment changes. But here we wouldn't want to do that.
+    |
+    (1) Ticked engines benefit from baking the environment whenever the environment changes. This is because the computation per step is higher than the mode for unticked, but very consistent. Collisions are estimates but done more regularly.
+    (2) Unticked engines benefit from baking the environment whenever the current execution path would change (either from a collision or user input). When following a motion arc steps are extremely cheap, but on execution-path-change the initial position for the motion arc changes, so you it would be wasteful to not start from this position again.
+    |
+    The base behaviour you need to guarantee you can perfectly simulate is that if you ran the game driver from the start until now, you would have the same outcome.
+    |
+    How often is the game driver run>
+    |
+    For a tickless engine, the game driver could be run as much as necessary right? The last initial position would be stored as state, and re-computed when needed. You give the game driver a state, and tell it to simulate for a certain amount of *time*. Both ticked and tickless would store their internal baked values in the envstate.
+    |
+    A tickless system would store its envstate as an initial state + time offset, and then either pre-compute values and store them in the envstate too or require you to do the simple motion calculation to find out the positions of everyone. But it would store its own internal baked state in the envstate. The ticked system wouldn't require such an explicit internal store of baked state, because it gets it for free. It doesn't need it. It just uses the previous tick's computed values.
+    |
+    So the end result is that both ticked and tickless systems work. BUT back to the question of option 1 or 2. The answer is that it doesn't matter!! It's an internal implementation detail. All the core module has to expose is the current state, and whether it recomputes lots or has some internal cache is irrelevant. But the good news is that for both a ticked and tickless system, if you called it at extremely high tickrates, it would only really do any computation when it needed to (ticked: on tick boundary; tickless: on collision/input).
+|
+Now back to this thread's initial question. How do you make a ticked system render smoothly? Tickless gets it for free. Is it the job of the interpolator to make ticked systems render smoothly? At a minimum, you need some tickless system which will run intra-tick prediction.
+|
+I guess there are two options: with a tickless smoother, or just rely on interpolator:
+(1) Tickless smoother: ?????
+(2) Interpolator: ?????
+|
+
+Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
