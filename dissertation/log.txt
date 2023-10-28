@@ -91,7 +91,7 @@ I've been ill twice over the past two weeks, so progress has been less than expe
 
 The reason I the CSP module I had before was unnecessary was because you get CSP for free with the existing modules. This is because other users' events are inserted into the execution timeline when they *should* have been received, not when they actually were received. And then the unstable executor runs everyone's cars up to the current tick, so everyone is in some predicted position. The latency between two players is essentially a time delay behind which the other player's events are inserted into the timeline.
 
-Then you just have the interpolation module at the end, which smoothes things over. Perfect. There is no re-computation optimisation in the core module because it does no re-computation. Its baked state is immutable because it has passed the latency cutoff. All recomp optimisation is in the unstable executor / CSP module (which we now know are the same thing).
+Then you just have the interpolation module at the end, which smooths things over. Perfect. There is no re-computation optimisation in the core module because it does no re-computation. Its baked state is immutable because it has passed the latency cutoff. All recomp optimisation is in the unstable executor / CSP module (which we now know are the same thing).
 |
 The uncertainty here is that, if no events are received for ages, the core module baked state never changes, because its only input is events, not the tick clock. The unstable module just gets bigger and bigger. The question is *should* the baked state update? Because after the latency cutoff the state won't change. One thought is that tick updates could be treated as events in the core module - which would make state get baked in. But then if all games would build this on top, surely it should just be built in? And where would the tick events originate from?
 |
@@ -135,9 +135,10 @@ New issue! Before I was implicitly thinking that the old unstable module was com
 |
 Now back to this thread's initial question. How do you make a ticked system render smoothly? Tickless gets it for free. Is it the job of the interpolator to make ticked systems render smoothly? At a minimum, you need some tickless system which will run intra-tick prediction.
 |
-I guess there are two options: with a tickless smoother, or just rely on interpolator:
-(1) Tickless smoother: ?????
-(2) Interpolator: ?????
+We have two layers to achieve good results, and while the end result was what I had initially shown in the core module diagram, the modules I had written down didn't achieve it.
 |
+First, we have a tickless approximation engine, which gives good smooth results for short periods of time, but quickly deviates. This is what I had envisioned the first CSP module being. This runs FROM the current tick, simulating a rough future for every frame. You could also have a module like this for a tickless engine - the benefit being that it guarantees no heavy collision computation, but it would not be necessary for smooth results.
+|
+Second, we have the interpolation engine, which smooths over all output. Its main job is to ease between ticks and bigger jumps in envstate, and is useful for both ticked and tickless engines. In ticked engines when a new tick is computed, the approx engine's result and the new tick may be different, so this eases between the two. In tickless engines, when an event is received from another player which happened in the past, the re-computation which happens may change the future (mini butteryfly effect), so we need to ease between the two (this also applies to ticked engines).
 
 Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
