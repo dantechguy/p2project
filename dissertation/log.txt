@@ -131,6 +131,7 @@ New issue! Before I was implicitly thinking that the old unstable module was com
     |
     A tickless system would store its envstate as an initial state + time offset, and then either pre-compute values and store them in the envstate too or require you to do the simple motion calculation to find out the positions of everyone. But it would store its own internal baked state in the envstate. The ticked system wouldn't require such an explicit internal store of baked state, because it gets it for free. It doesn't need it. It just uses the previous tick's computed values.
     |
+    
     So the end result is that both ticked and tickless systems work. BUT back to the question of option 1 or 2. The answer is that it doesn't matter!! It's an internal implementation detail. All the core module has to expose is the current state, and whether it recomputes lots or has some internal cache is irrelevant. But the good news is that for both a ticked and tickless system, if you called it at extremely high tickrates, it would only really do any computation when it needed to (ticked: on tick boundary; tickless: on collision/input).
 |
 Now back to this thread's initial question. How do you make a ticked system render smoothly? Tickless gets it for free. Is it the job of the interpolator to make ticked systems render smoothly? At a minimum, you need some tickless system which will run intra-tick prediction.
@@ -142,3 +143,27 @@ First, we have a tickless approximation engine, which gives good smooth results 
 Second, we have the interpolation engine, which smooths over all output. Its main job is to ease between ticks and bigger jumps in envstate, and is useful for both ticked and tickless engines. In ticked engines when a new tick is computed, the approx engine's result and the new tick may be different, so this eases between the two. In tickless engines, when an event is received from another player which happened in the past, the re-computation which happens may change the future (mini butteryfly effect), so we need to ease between the two (this also applies to ticked engines).
 
 Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
+
+=2023/10/30
+Writing some of my introduction chapter draft. Here are some notes and thoughts:
+
+It describes:
+- The paper's topic
+- The problem being studied
+- References to key papers
+- The approach to the solution
+- Scope and limitations of the solution
+- The outcomes
+
+Motivation:
+- Why is the problem interesting
+- The relevant scientific issues
+- Why the approach is good
+- Why the outcomes are significant
+
+What is new? The exact anticheat method I describe (sending deltas) already exists, but only engrained within specific game engines and therefore not in a generalisable form which anyone can build upon. 
+
+After reading? You should understand the scope of the work and problem, and the contribution.
+
+
+First sentence of paragraph should summarise the whole paragraph. Final sentence is impact.
