@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:blitzmania/blitz_painter.dart';
+import 'package:blitzmania/driver.dart';
 import 'package:blitzmania/inputs.dart';
 import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'env.dart';
 
@@ -18,22 +21,57 @@ class BlitzApp extends StatefulWidget {
 }
 
 class _BlitzAppState extends State<BlitzApp> {
+  late Env env;
+
+
+  final input = UserInput(userId: 0, accelerating: 0, steering: 0);
+
+  @override
+  void initState() {
+    super.initState();
+
+    final testCar = Car(
+      userId: 0,
+      position: Vector2.zero(),
+      velocity: Vector2.zero(),
+      direction: 0,
+      mass: 1000,
+      dragCoefficient: 1000,
+      maxAcceleration: 3,
+      maxSteer: 2 * pi * 0.01,
+      size: Size(1, 2),
+      col: Colors.red,
+    );
+
+    env = Env(
+      inputs: [],
+      users: [
+        User(displayName: 'dan', id: 0, connected: true),
+      ],
+      cars: [
+        testCar,
+      ],
+    );
+
+    Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      setState(() {
+        env.inputs = [input];
+        driveInplace(env);
+        print(env.cars.first.position);
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Blitz Mania',
       home: Scaffold(
         body: BlitzInputs(
+          onSteer: (double steer) => input.steering = steer,
+          onAccelerate: (double accelerate) => input.accelerating = accelerate,
           child: BlitzPaintWidget(
-            env: Env(
-              cars: [
-                Car(pos: Offset(0, 0), rot: pi/4, size: Size(20, 50), col: Colors.red),
-                Car(pos: Offset(100, 0), rot: 0, size: Size(20, 50), col: Colors.blue),
-                Car(pos: Offset(200, 0), rot: pi/2, size: Size(20, 50), col: Colors.orange),
-                Car(pos: Offset(0, 100), rot: 3*pi/4, size: Size(20, 50), col: Colors.purple),
-                Car(pos: Offset(0, -100), rot: 0, size: Size(20, 50), col: Colors.tealAccent),
-              ]
-            ),
+            env: env,
           ),
         ),
       ),
