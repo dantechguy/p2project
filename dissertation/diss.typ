@@ -18,7 +18,8 @@
 }
 #set text(size: 12pt)
 #set heading(numbering: "1.")
-#set par(justify: true)
+#set par(justify: true, first-line-indent: 0.5in)
+#show par: set block(spacing: 0.65em)
 
 *Project Originator:* #author \
 *Project Supervisor:* #project_supervisor \
@@ -60,11 +61,105 @@ there are four primary downsides to this approach. first, it requires game devel
 
 the benefits of this project is that building online multiplayer games which are secured at their core becomes free when built with this system. its super easy. lots of money is spent on anticheat, and many games are destroyed because they are overrun by hackers. trying to add anticheat on top of a game which is insecure at its core is very expensive and ineffective, and adding a secure core to a game after it is built is very difficult because it requires rewriting the core fundamentals of the game engine, and changing the network protocols making different versions incompatible with each other. building it the right way from the start is the most effective way - all developers can use this system, add the parts they need, build anything missing, and have a secure system ready to go. they don't need expensive server setups to do loads of computation. it makes developing secure online multiplayer games accessible to everyone.
 
----
 
 the outcomes???
 
+---
 
+= >> Second Attempt at Introduction
+
+
+Write for someone of Josh Bird's competence level.
+
+
+anticheat is important
+
+the type of anticheat we're looking at 
+
+good qualities of core anticheat
+
+existing approaches don't tick all the boxes
+
+why this is a problem
+
+my solution which ticks all the boxes
+
+the limitations of my solution
+
+paper introduces new approach, implements it, uses it, evaluates it
+
+potential benefits of my solution
+
+
+
+
+
+
+
+
+**anticheat is important**
+
+online multiplayer games are popular and many people try to cheat. companies want to stop this because normal players won't play if there are cheaters. developing anticheat is a subsection of cybersecurity and an adverserial task. [cite paper which talked about the effects of cheaters on games]. 
+
+**the type of anticheat we're looking at**
+
+this dissertation looks into securing the base protocol and game engine of games, compared to modern research into anticheat is high level machine learning and kernel-level drivers. high level approaches are only worth following after securing the base, with some games only having high level anticheat.
+
+**good qualities of core anticheat**
+
+# > should be either game engines or anticheat. if game engine, a point should be that many don't provide any networking help, let alone anticheat
+# > I think it should compare game engines, as that is what I'm building (or at least a core).
+# > There isn't much of a difference really. Some anticheat is inbuilt to a game engine, other is separate software.
+
+current game engines / anticheat fail in at least two of the following ways: not open source, not generalisable (re-usable) to other games, expensive to run on servers, trusts clients (not delta based). this means secure online gaming is very inaccessible to many. too expensive to run and hard to make for developers, and poor gaming experiences (with hackers) for players.
+
+anticheat needs to be open source to enable as many developers to use it. closed source anticheat means it is difficult to modify to your needs, and will likely cost money to use and access. however companies with existing solutions aren't incentivised to release it, as it helps others.
+
+the more generalisable an anticheat is the more developers can use it. different games have different architectures and styles so a 'one size fits all' anticheat would probably be bad or not exist, but many aspects of games are similar. building an anticheat which is modular so developers can combine pieces to suit their game needs would then again maximise generalisability and help the most games possible use it.
+
+many anticheat systems run on servers, meaning servers must perform continual computation for every currently playing player. as the number of players increases this gets very expensive. if an anticheat can minimise the ongoing running cost, more developers can implement and use it.
+
+a secure system means you cannot trust the client. this is common knowledge in cyber security and web development, but not necessarily game development. its often the easiest, first, and most intuitive approach, and can then be hard to change later. trusting the client means a cheater can send whatever values they wish to the server, doing what they want. 
+
+**existing approaches don't tick all the boxes**
+
+Game engines such as Valve Source (which runs CSGO) do not trust the client, and instead have clients send deltas. this however then requires their servers to simulate the clients, which is expensive. its additionally not open source.
+
+Peer to peer based games such as Mario Kart, do not require a central server for most communication, reducing server load. however any such solution must be built customly, is complex, and is very difficult to secure from cheaters due to lack of server inclusion.
+
+Popular game engines such as Unity and Unreal Engine and Godot do not provide any networking or anticheat capabilities, and are often closed source. This means you need to build a solution yourself. Their core inner workings also don't allow you to build a delta-based protocol. They also have lots of existing paradigms so its hard for a developer to introduce a new game loop.
+
+**why this is a problem**
+
+the lack of good tooling and anticheat for developers to use when building games means its more expensive to make games (more time to develop, or pay for other solutions), more expensive to keep online multiplayer games online (running anticheat servers), which naturally means many games will have poor online security. this means lots of hackers, which means worse experience for players, and in the end fewer players playing the game.
+
+**my solution which ticks all the boxes**
+
+DAN attempts to overcome all of the issues previously mentioned. it will be open source, based on the Flutter UI framework. it will be generalisable and modular, making minimal assumptions about the game, meaning developers can compose various components as they need for their game. it will require low server computation, without needing the server to constantly compute every player as other systems do. it also does not trust the client, meaning an entire class of cheats are impossible, as it is secure at the game engine and protocol level.
+
+**the limitations of my solution**
+
+DAN's core game loop requires developers to think in a slightly different way about game state, which may be unfamiliar to many game developers.
+
+DAN requires complete computational consistency across all platforms. a particular pain point is floating point numbers. this is completely possible, as any inconsistency otherwise un-removable can be simulated in software, but this can lead to reduced performance.
+
+DAN is more computationally intensive, re-computing states often and often simulating other players locally. many of the dissertation's extensions and future work surrounding DAN revolve around optimisations to significantly reduce this computational load.
+
+DANs state synchronisation algorithm can lead to poor gameplay if a game requires trusting a client regarding specific parts of gameplay, for example in an FPS if your bullet hit another player on your screen then the server believes you. In CSGO this is exploitable by cheaters, but it may be possible to trust clients in a secure way, at the expense of increased computation.
+
+All of these limitations are managable, and will be discussed later on. One point is that often the solution is to increase computation, at the risk of reducing performance. Many modern systems have an abundance of computation power so this may not be an issue. One of the core evaluation metrics is performance of this system.
+
+**paper introduces new approach, implements it, uses it, evaluates it**
+
+This dissertation introduces DAN and explains how it works. I then implement the core and various modules which could be used for real game development. I then use the implementation of the core and modules to build a simple online multiplayer game. Finally, I evaluate the success of DAN based on experiments and observation.
+
+**potential benefits of my solution**
+
+if its successful, then as flutter game dev community grows, so will my game engine core!
+
+if more people build their games on top of DAN, their games will be secured at the engine and protocol level, and require low server running costs, without any additional work.
+
+This makes building secure online games more accessible, and means more players can have better experiences playing multiplayer games.
 
 = Preparation
 Explain how system works? Explain what an event object consists of? Theory behind future modification, the latency cutoff, and the consequences for cheating.

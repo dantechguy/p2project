@@ -154,6 +154,26 @@ It describes:
 - The approach to the solution
 - Scope and limitations of the solution
 - The outcomes
+Shows that your paper is worth reading, and introduces some context to help the reader. Don't use specialised terms.
+
+
+The paper's topic
+- introduces a new method of low-level anticheat which improves over existing solutions
+- implements this method as an open source, generalisable, modular, game engine core
+- builds a simple online multiplayer game using the game engine
+- evaluates its success
+
+What are the limitations of my approach?
+- Developing stateless game engine is a new way of thinking for developers
+- Requires complete computational consistency across platforms (solvable, potentially at the cost of performance)
+- Computationally intensive (solvable to an extent)
+- Limited conflict resolution algorithm (solvable, at the cost of performance)
+
+What is the scope of this paper?
+- Develop the core modules for an anticheat game engine.
+- Develop a simple game using the developed modules, for quantitative and visual validation.
+- Evaluate the success of the core modules through experimental data and observation.
+
 
 Motivation:
 - Why is the problem interesting
@@ -161,12 +181,50 @@ Motivation:
 - Why the approach is good
 - Why the outcomes are significant
 
-What is new? The exact anticheat method I describe (sending deltas) already exists, but only engrained within specific game engines and therefore not in a generalisable form which anyone can build upon. 
+Why is the problem interesting?
+- There is no single game or game engine which solves all problems at once
+    - There exist games which run on deltas (e.g. CSGO)
+    - There exist games which require zero/low server computation (e.g. P2P based)
+    - There exist open source game engines (e.g. Godot)
+    - There exists a game engine for Flutter
+- It is possible to solve all problems at once
+
+The relevant scientific issues.
+- Games which run on deltas require expensive large-scale server computation.
+- P2P based games have limited anticheat.
+- Existing open source game engines either do not support delta-based multiplayer, require expensive server computation, or are fixed to a specific physics engine. They also have well-established paradigms which makes deep modifications difficult.
+- The Flutter game engine is an example of a limited open source game engine.
+
+Why is my approach good?
+- Open source
+- Generalisable and modular for all games
+- Made in Flutter
+- Removes an entire class of cheats
+- Requires very little (even zero) server running costs
+
+Why are the outcomes significant?
+- Most popular game engines are closed source. Developing this core open source increases the chance it's used.
+- This core makes minimal assumptions, so can be used for all types of games.
+- This core is developed in Flutter which has a small but growing game development community. If introduced and used by the community now, it has the potential to grow large and be used by many.
+- Developers who use this core get anticheat 'for free' when introducing multiplayer.
+- This anticheat reduces development and ongoing costs of online multiplayer games. Complex networking problems are solved, and ongoing server costs are low.
+- This means players have better experiences with online multiplayer (fewer "hackers"), and developers spend less time and money making and hosting games.
 
 After reading? You should understand the scope of the work and problem, and the contribution.
 
+Paragraphing
+- One paragraph, one topic or issue.
+- Main point is captured in the first sentence.
+- Rest of paragraph amplifies or gives examples.
+- All sentences are on the main point in the first sentence.
+- Last sentence has more impact.
+--
+- Context can be lost between paragraphs: use fuller term over "this".
+- Link paragraphs with repeated keywords or phrases, and expressions for explicit links.
 
-First sentence of paragraph should summarise the whole paragraph. Final sentence is impact.
+Sentence stucture
+- Simple structure.
+- Keep related phrases close (don't have large subsections).
 
 = 2023/11/6
 Whether the engine is internally driven or externally driven depends on how the rendering works. In flutter, the paint function is called so its externally driven. Given the interpolation engines, it doesn't make any sense for it to be internally driven, as it could render infinite frames.
