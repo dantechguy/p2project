@@ -125,7 +125,7 @@ New issue! Before I was implicitly thinking that the old unstable module was com
     |
     The base behaviour you need to guarantee you can perfectly simulate is that if you ran the game driver from the start until now, you would have the same outcome.
     |
-    How often is the game driver run>
+    How often is the game driver run?
     |
     For a tickless engine, the game driver could be run as much as necessary right? The last initial position would be stored as state, and re-computed when needed. You give the game driver a state, and tell it to simulate for a certain amount of *time*. Both ticked and tickless would store their internal baked values in the envstate.
     |
@@ -144,7 +144,7 @@ Second, we have the interpolation engine, which smooths over all output. Its mai
 
 Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
 
-=2023/10/30
+= 2023/10/30
 Writing some of my introduction chapter draft. Here are some notes and thoughts:
 
 It describes:
@@ -167,3 +167,19 @@ After reading? You should understand the scope of the work and problem, and the 
 
 
 First sentence of paragraph should summarise the whole paragraph. Final sentence is impact.
+
+= 2023/11/6
+Whether the engine is internally driven or externally driven depends on how the rendering works. In flutter, the paint function is called so its externally driven. Given the interpolation engines, it doesn't make any sense for it to be internally driven, as it could render infinite frames.
+|
+However it will continue to receive events even if not rendering. What happens if the engine is not called for a long period of time? Should it continue to compute whenever it receives a tick marker. That would make sense. In a tickless engine, it would only re-compute upon collision or new event.
+
+Where do the tick border events come from? Some events are server synchronised in that they either come from the server, or local copies are kept until the server confirms or rejects them. Some events are assumed synchronised such as tick borders. Perhaps its a layer above the core module? Maybe the server also sends tick events? This lets clients bake in values sooner than receving the next event.
+|
+A layer above could be connected into a system timer, which generates these tick events.
+
+= 2023/11/7
+For now to test the Game Driver without the Client Networking module, just set up an interval timer which runs the game engine at tick rate. Inputs will be collated during the tick.
+
+A note: with the tick event generation layer, don't pass this implementation detail to upper layers where users will be interacting. The game driver should be able to deal with events as it wishes, whether thats in bulk per tick, or one at a time.
+|
+The game driver could simply add in events to an interal buffer and then just use the tick event as a trigger for computation, but this may be too weird for users.
