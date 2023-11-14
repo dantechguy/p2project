@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'env.dart';
+import '../shared/env.dart';
 
 final Paint grassPaint = Paint()..color = Colors.green;
 

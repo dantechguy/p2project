@@ -1,6 +1,6 @@
-import 'package:blitzmania/renderer.dart';
+import 'package:blitzmania/ui/renderer.dart';
 import 'package:flutter/cupertino.dart';
-import 'env.dart';
+import '../shared/env.dart';
 
 class BlitzPaintWidget extends StatelessWidget {
   const BlitzPaintWidget({super.key, required this.env});

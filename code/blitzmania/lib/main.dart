@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:blitzmania/blitz_painter.dart';
-import 'package:blitzmania/driver.dart';
-import 'package:blitzmania/inputs.dart';
+import 'package:blitzmania/ui/blitz_painter.dart';
+import 'package:blitzmania/physics/driver.dart';
+import 'package:blitzmania/ui/inputs.dart';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-import 'env.dart';
+import 'shared/env.dart';
 
 void main() {
   runApp(BlitzApp());

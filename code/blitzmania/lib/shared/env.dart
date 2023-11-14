@@ -3,13 +3,17 @@ import 'dart:ui';
 import 'package:vector_math/vector_math.dart';
 
 /// Representation of the environment at an instant in time.
+///
+/// Stores:
 class Env {
   Env({
+    required this.gameTime,
     required this.users,
     required this.cars,
     required this.inputs,
   });
 
+  Duration gameTime;
   List<User> users;
   List<UserInput> inputs;
   List<Car> cars;

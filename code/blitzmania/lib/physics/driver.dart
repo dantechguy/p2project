@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'env.dart';
+import '../shared/env.dart';
 import 'package:vector_math/vector_math.dart';
 
 const tickPeriodSecs = 0.05;
