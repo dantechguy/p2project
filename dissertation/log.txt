@@ -141,6 +141,8 @@ We have two layers to achieve good results, and while the end result was what I 
 First, we have a tickless approximation engine, which gives good smooth results for short periods of time, but quickly deviates. This is what I had envisioned the first CSP module being. This runs FROM the current tick, simulating a rough future for every frame. You could also have a module like this for a tickless engine - the benefit being that it guarantees no heavy collision computation, but it would not be necessary for smooth results.
 |
 Second, we have the interpolation engine, which smooths over all output. Its main job is to ease between ticks and bigger jumps in envstate, and is useful for both ticked and tickless engines. In ticked engines when a new tick is computed, the approx engine's result and the new tick may be different, so this eases between the two. In tickless engines, when an event is received from another player which happened in the past, the re-computation which happens may change the future (mini butteryfly effect), so we need to ease between the two (this also applies to ticked engines).
+|
+You *could* use the state-step function to predict one tick into the future and then use a between-tick interpolator, which at first glance seems like a simpler solution as it only uses one interpolator. But this doesn't solve the issue of interpolating when new events arrive. So you would then need another interpolator on top
 
 Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
 
@@ -241,3 +243,64 @@ For now to test the Game Driver without the Client Networking module, just set u
 A note: with the tick event generation layer, don't pass this implementation detail to upper layers where users will be interacting. The game driver should be able to deal with events as it wishes, whether thats in bulk per tick, or one at a time.
 |
 The game driver could simply add in events to an interal buffer and then just use the tick event as a trigger for computation, but this may be too weird for users.
+
+= 2023/11/11
+The entire system operates on the assumption that all clocks are synced. Can we trust in-built device clock syncing? Or do we have to manually do some internal clock syncing?
+
+= 23023/11/14
+This is a question I've had several times. Are the core module layers wrapped (abstracting other inner modules), or are they linearlly sequenced (exposing all message passing).
+|
+Presumably linear means they're more composable, as the 'glue' connecting their inputs and outputs is manually defined by the user (although usually it's just passing the data directly in).
+|
+If its wrapped, 
+|
+Maybe its depends on if you want both the input and output to be modified, or just the output? The input as an event stays the same. This is right. Wrapped layers could either operate on input or output. In Java for file wrappers, they just wrap the outside I think, and the constant argument is passed to the innermost object. This input can be a Stream for ours.
+
+```dart
+// Nested
+engine = Interpolator(
+    TicklessApproximator(
+        UnstableExectutor(
+            CoreEngine(),
+        )
+    )
+)
+
+engine.addEvents(evt)
+
+env = engine.getCurrentState()
+render(env)
+```
+
+```dart
+// Linear
+core = CoreEngine(
+    latencyCutoff: 1 second,
+    stateStepFunction: DriveTick,
+)
+unstableEvents = UnstableExecutor(
+    core: core,
+
+)
+extrapolatedEvents = TicklessApproximator(unstableEvents)
+interpolated = Interpolator(extrapolatedEvents)
+
+core.addEvent(evt)
+
+env = interpolated.getCurrentState()
+render(env)
+```
+
+These are both almost the same. But with the principle that the wrapper only needs to modify the output, we sho8ld go with the one where inputs are sent to the inner-most module.
+
+But these modules aren't generalisable at all. The extrapolator and interpolator both depend on the Env object completely. Is there some way to generalise them?
+|
+Given they only operate on a constant subset of the envstate, that is, the physics objects, perhaps we could define a generalisable physics object interface for the Env and the relevant objects it contains? Would it be general enough to be useful?
+|
+Extrapolator would continue with current velocity, perhaps including acceleration. You could pass it a function which, given an Env object, returns a collection of physics objects which all have a velocity and displacement attribute. This anonymous function would make it especially generalisable. Different constructors could be used for different variations (e.g. 3D vs 2D, including or excluding acceleration). Might need a pair of functions, one for getting and one for setting?
+|
+Interpolator could be passed a pair of set and get functions (to access an iterator of items and update items). Pass an interpolation curve optionally. And optionally pass a calculation function for when simple scalar interpolation isn't enough. If different values need to be handled differently, you can stack interplators. If the interpolation duration also changes, pass a function which takes an iterated item and returns the duration.
+|
+Both share the 'extract' and 'update' pattern, perhaps we could turn that into it's own thing? You could create an transformer class
+
+How do you defined classes and types which are extensible and composable? Interfaces for 'receives stream of events' and 'outputs stream of events' ?

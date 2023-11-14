@@ -1,0 +1,40 @@
+Engine
+
+Parameters / inputs are:
+- The latency cutoff. What is the maximum latency between the server and client the game supports.
+- Real-time sequence of events. It stores these internally.
+- A state step function. Given a current environment, step forward a certain amount of time.
+
+It exposes as output:
+- The current stable environment state.
+- Sequence of current, unstable, events. These may be deleted or re-ordered.
+
+
+Unstable runner
+
+Parameters / inputs are:
+- ? Real-time sequence of events. Unsure if this module passes events into its internal core module. Probably.
+- The core module. 
+- A state step function.
+
+It exposes as output:
+- The current unstable environment state.
+
+
+Lightweight tickless approximator
+
+Parameters / inputs are:
+- Current environment state.
+- Time of envstate and current time / how far to simulate.
+
+It exposes as output:
+- A current envstate which is continuous.
+
+
+Interpolator / smoother
+
+Parameters / inputs are:
+- Sequence of envstates over time.
+
+It exposes as output:
+- A current envstate which changes smoothly (has no sudden jumps).
