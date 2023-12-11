@@ -1,6 +1,6 @@
 Dan Wendon-Blixrud (drw48) Dissertation Log
 
-= 2023/10/20 (3 hours)
+# 2023/10/20 (3 hours)
 Setup local and github git repos for proposal, dissertation, and code. Have a local Typst compiler and vscode extension for writing the dissertation.
 
 I need to create a skeleton of my dissertation. The basic outline is fixed:
@@ -20,21 +20,21 @@ I need to create a skeleton of my dissertation. The basic outline is fixed:
 
 Within each section I need to plan the structure: "a graph here, analysis here" etc.
 
-= 2023/10/21 (1 hour)
+# 2023/10/21 (1 hour)
 There's an issue with XCode 15.0.0 which causes macos builds to fail. Progress logged https://github.com/flutter/flutter/issues/135277. Will build for web while waiting.
 
 Have written a basic implementation of the envstate `Env` object, a basic renderer for the envstate, and a basic arrow key detection widget. 
 
 Next job is to combine them into the app and see if they all work as expected.
 
-= 2023/10/22 (1 hour)
+# 2023/10/22 (1 hour)
 Got the inputs all working: arrow keys are detected. Rendering works as expected, cars are in the correct place, with the correct colour, size, and rotation.
 
 Excellent, UI and Driver core is finished. The cars and grass look terrible. There is no track, but that will be very quick to implement rendering for, and it's worth me waiting until I know it will be implemented to then render it too.
 
 2023-10-22-18-29-first_render_and_input_test.png
 
-= 2023/10/23 (2 hours coding, 1h thinking)
+# 2023/10/23 (2 hours coding, 1h thinking)
 Currently creating the Env state and how it handles and stores user inputs. Needed to know if user latency information was going to be stored in the Env object or in the client only as a current value. The way you know?: do you need it when re-computing old values, and does it need to be synchronised across all clients?
 
 In this case you don't, as latencies are only needed for CSP. But in the future work where you may do individual client truth computation (for scanline hits) then you may need this information, to know the state of each client at a particular point in time.
@@ -83,10 +83,10 @@ Now the question is, given clients only send events on input changes, how do we 
 |
 So given we just send events on input change, the CSP module will simply have to extrapolate from the last event received from every other client.
 
-= 2023/10/25
+# 2023/10/25
 Work on Blitz renderer, I need to fix the infinite recursion bug with splitting tris on the camera plane. My hypothesis is that after a tri has been split into three, at least one of the three new tris is also considered to lie 'on' the camera plane, and therefore being split itself.
 
-= 2023/10/27
+# 2023/10/27
 I've been ill twice over the past two weeks, so progress has been less than expected.
 
 The reason I the CSP module I had before was unnecessary was because you get CSP for free with the existing modules. This is because other users' events are inserted into the execution timeline when they *should* have been received, not when they actually were received. And then the unstable executor runs everyone's cars up to the current tick, so everyone is in some predicted position. The latency between two players is essentially a time delay behind which the other player's events are inserted into the timeline.
@@ -131,7 +131,6 @@ New issue! Before I was implicitly thinking that the old unstable module was com
     |
     A tickless system would store its envstate as an initial state + time offset, and then either pre-compute values and store them in the envstate too or require you to do the simple motion calculation to find out the positions of everyone. But it would store its own internal baked state in the envstate. The ticked system wouldn't require such an explicit internal store of baked state, because it gets it for free. It doesn't need it. It just uses the previous tick's computed values.
     |
-    
     So the end result is that both ticked and tickless systems work. BUT back to the question of option 1 or 2. The answer is that it doesn't matter!! It's an internal implementation detail. All the core module has to expose is the current state, and whether it recomputes lots or has some internal cache is irrelevant. But the good news is that for both a ticked and tickless system, if you called it at extremely high tickrates, it would only really do any computation when it needed to (ticked: on tick boundary; tickless: on collision/input).
 |
 Now back to this thread's initial question. How do you make a ticked system render smoothly? Tickless gets it for free. Is it the job of the interpolator to make ticked systems render smoothly? At a minimum, you need some tickless system which will run intra-tick prediction.
@@ -146,7 +145,7 @@ You *could* use the state-step function to predict one tick into the future and 
 
 Had a read about floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Could be an issue! This would require testing and could be half a dissertation on its own. There are definitely methods to ensuring determinacy (including SW implemented floats) but the cost to performance is obviously the largest limiting factor.
 
-= 2023/10/30
+# 2023/10/30
 Writing some of my introduction chapter draft. Here are some notes and thoughts:
 
 It describes:
@@ -228,7 +227,7 @@ Sentence stucture
 - Simple structure.
 - Keep related phrases close (don't have large subsections).
 
-= 2023/11/6
+# 2023/11/6
 Whether the engine is internally driven or externally driven depends on how the rendering works. In flutter, the paint function is called so its externally driven. Given the interpolation engines, it doesn't make any sense for it to be internally driven, as it could render infinite frames.
 |
 However it will continue to receive events even if not rendering. What happens if the engine is not called for a long period of time? Should it continue to compute whenever it receives a tick marker. That would make sense. In a tickless engine, it would only re-compute upon collision or new event.
@@ -237,17 +236,17 @@ Where do the tick border events come from? Some events are server synchronised i
 |
 A layer above could be connected into a system timer, which generates these tick events.
 
-= 2023/11/7
+# 2023/11/7
 For now to test the Game Driver without the Client Networking module, just set up an interval timer which runs the game engine at tick rate. Inputs will be collated during the tick.
 
 A note: with the tick event generation layer, don't pass this implementation detail to upper layers where users will be interacting. The game driver should be able to deal with events as it wishes, whether thats in bulk per tick, or one at a time.
 |
 The game driver could simply add in events to an interal buffer and then just use the tick event as a trigger for computation, but this may be too weird for users.
 
-= 2023/11/11
+# 2023/11/11
 The entire system operates on the assumption that all clocks are synced. Can we trust in-built device clock syncing? Or do we have to manually do some internal clock syncing?
 
-= 23023/11/14
+# 23023/11/14
 This is a question I've had several times. Are the core module layers wrapped (abstracting other inner modules), or are they linearlly sequenced (exposing all message passing).
 |
 Presumably linear means they're more composable, as the 'glue' connecting their inputs and outputs is manually defined by the user (although usually it's just passing the data directly in).
@@ -291,7 +290,7 @@ env = interpolated.getCurrentState()
 render(env)
 ```
 
-These are both almost the same. But with the principle that the wrapper only needs to modify the output, we sho8ld go with the one where inputs are sent to the inner-most module.
+These are both almost the same. But with the principle that the wrapper only needs to modify the output, we should go with the one where inputs are sent to the inner-most module.
 
 But these modules aren't generalisable at all. The extrapolator and interpolator both depend on the Env object completely. Is there some way to generalise them?
 |
@@ -301,6 +300,140 @@ Extrapolator would continue with current velocity, perhaps including acceleratio
 |
 Interpolator could be passed a pair of set and get functions (to access an iterator of items and update items). Pass an interpolation curve optionally. And optionally pass a calculation function for when simple scalar interpolation isn't enough. If different values need to be handled differently, you can stack interplators. If the interpolation duration also changes, pass a function which takes an iterated item and returns the duration.
 |
-Both share the 'extract' and 'update' pattern, perhaps we could turn that into it's own thing? You could create an transformer class
+Both share the 'extract' and 'update' pattern, perhaps we could turn that into its own thing? You could create an transformer class
 
 How do you defined classes and types which are extensible and composable? Interfaces for 'receives stream of events' and 'outputs stream of events' ?
+
+# 2023/11/26
+Mention the approximation of Euler physics and why you need constant tickrate with a non-continuous physics engine.
+
+Does the interpolator interpolate based off of Env's that it's *seen*, or Env's that have been generated. If it's off those it's seen, then it will interpolate differently if you've had a big lag spike and missed a bunch of frames. Then it will interpolate from the last rendered frame. 
+|
+If it's off those that have been generated, then, well, what *does* that mean? It can't statelessly interpolate between the last few envs, because the last few envs may change with a late event. So it must be internal, and must be based off of what's been seen?
+
+Generalising the `Smoother` class:
+- This could first involve using anonymous functions.
+    - One function to gather an iterator of objects to interpolate over.
+    - You need to know which object corresponds to which across frames, so
+    either the function above returns a map from ids to objects, or you
+    have another function which given an object returns its id.
+    - One function to take in a current object and return it interpolated.
+    - An issue with the above is that you don't have the object's source
+    (where you got it from) when determining it's id, so you may have to
+    resort to type lookup. Would be better if you could specify its id
+    alongside the item in the iterator, such as in a record.
+    - You could also have objects implement a "Smoothable" type where they
+    just expose a unique id. There's the question of where the smoothing
+    implementation is. I feel doing it in one smoothing object (here)
+    is better than across all Smoothable objects, as it keeps the logic
+    in one place.
+- Then build upon this with a physics object interpolator.
+- How does customising the smoothing technique work?
+    - For example: exponential vs linear vs whatever.
+    - What is the minimum interface to implement any method? You likely just
+    need a persistent state object you can write and read.  Maybe for now
+    I'll make the state just an object of that type, for ease?  However
+    this will not be type safe, as if the same id is used for two
+    objects of different types in consecutive frames, it'll break.  I can
+    see this being quite a difficult bug to identify and fix too.
+
+When running unstable events, how are events added into the Envs? Is this part of the driver?
+|
+Is the driver run once for every event, and in a ticked engine, when inbetween ticks and not executing, it will buffer the event inputs until the next tick?
+
+# 2023/12/4
+open closed principle blitz. how would you add a line renderer (w and w/out depth). or text renderer. or textures. is the main issue sorting? because we can have user provided rendering right??? ah but lighting wont work if it isnt just tris
+
+# 2023/12/10
+How do you know when to bake in an event? You have a latencyCutoff and event timestamp, but can you guarantee that the client's clock is the same as the server's? Every event from the server will send a 'server timestamp on receipt'. You can use this as a guaranteed timestamp passed in the server. The core will store a 'last guaranteed server time passed' value.
+
+In the Env driver function, how are events inputted / processed into the Env? All inputs from all players should be inputted into the Env as events, including local user inputs. The Env should ONLY be modified from events, not anywhere else in the system.
+
+And how are local user inputs (which don't come from the server) inputted into it too?
+
+# 2023/12/11
+Before I was unsure if the input to the Core should be an object or a stream. I want the tick generator to wrap the inputs to the Core, rather than the Core itself, as it modifies the inputs rather than the outputs. This means it matches the decorator pattern.
+|
+To have it do the same, there's no way to have it wrap the inputs to generate new tick events if it's an object. It would have the wrap the core object. So we must make the input an event stream for this reason: so the Core can wrap *it*.
+|
+The Tick Generator can generate new tick events either from a regular interval timer, and from receiving new events.
+|
+How do we ensure that the local client reacts instantly to user input? Because in the current model it can only react once it receives a tick event. What if the driver computed a new unstable Env state for all the current states, regardless of when the last tick event was given, but only bakes and saves envs that were computed in tick events? Or is this what happens already?
+|
+No, this doesn't happen already, as the unstable runner just runs the driver function same as the Core.
+|
+NO WAIT. This is the purpose of the tickless approximator. This is exactly the purpose of the tickless approximator. But will the tickless approximator react instantly to new user input? NO! It won't, as the buffered events for the next tick will be stored in the Env.
+|
+Should this be done in the driver and tick generator, or in the tickless approximator?
+|
+  Option (1) Driver and tick generator
+  |
+  Perhaps we have a constant temp-tick event which always sits at the end of the unstable event list. This way the driver will always compute with *all* of the unstable events, rather than ignoring the ones within the period between the last tick event and the present. 
+    Note: this wouldn't work if the tick period was longer than the latency cutoff. Why? Actually it might.
+  |
+  This would work well too as the Smoother would ensure that, even as the player's input is slowly held up to the next incoming tick event, the interpolation would be smooth.
+  |
+  How would you integrate this nicely with the Core and driver? At the moment the fact the driver is ticked is not nicely handled. The Core doesn't know about it (which is nice), but the tick events are generated from a layer above, and the driver must handle some of this tick buffering logic internally. Maybe the input wrapper can buffer the events instead? If the driver could be independent of the ticked buffering somehow it would be nice.
+  |
+  I don't like this approach, because it's putting so much re-usable logic inside the custom driver, AND it spreads this custom tick logic across many different layers. It requires modifying the unstable executor to add in the temporary tick event. I guess this *could* be added to a separate layer on top of the unstable executor, by simply running the output Env of the unstable executor through the driver once more with just the tick event. Perhaps the tick generator isn't just a wrapper around the inputs, but also around the outputs?
+  |
+    I think it could work as a separate layer / wrapper. So far the approach is that you can create any sort of Core by *just* composing existing layers to make what you need. So if you need a ticked system, you add the tick generator layer. And if you want the ticked system to react to user inputs instantly, you add the temp-tick event adder layer.
+  |
+  Although there may be a way of keeping the driver interface / requirements simple and consistent across different game types, while still being able to implement a wide variety of ticked and tickless systems: if the driver interface is simply that when it receives a tick event it performs a computation, then you could do a computation after each input, just do a computation once every tick, have a temporary computing tick at the end of the unstable list, etc.
+  |
+  Question is then that is there a type of system that this wouldn't fit? Are there some ticked systems that simply wouldn't work having to be defined in terms of variable computation differences?
+  |
+  Option (2) Tickless approximator
+
+|
+Does it even make sense to have this? Would it just be better to have the driver update the computation per event, *as well* as the tick period? This way everyone would see the instant reaction. Otherwise the instant reaction is just an illusion for the local player, as the temp-tick event gets pushed back and their input gets computed at the next tick boundary anyway.
+|
+The adding 'temp-tick' event always at the current timestamp won't work, if the computation is still bulked at the event. I think executing player inputs when they are received could work well, as long as there's additionally a regular tick event generated to keep it moving during periods of no user inputs.
+|
+One concern is that there will a lot of events generated which will be difficult to compute for low-level devices. Perhaps we have a maximum rate of events generated for each user? Bulk computing events will still be far more efficient though. This is a design choice a game driver designer will make, but ideally you would want the (local?) reactivity of per-event computation, but with the efficiency of bulk computation. Is there some way to have the local user temporarily and locally-only be in a hyper-reactive state where all inputs are computed as soon as they're generated, but they interpolate back to the bulk-tick computation state after a short period? Would this look or feel bad?
+|
+The max extent of the 'bad' feeling would be moving 'back' by the tick period, over a period of the Smoothing period. So if the Smoothing period and tick period were the same, would you just be frozen in place for a duration of the period? Perhaps if the Smoothing interpolation was linear. Without Smoothing you would teleport back. So you would want to make sure that the Smoothing was longer than the tick period, but the longer the Smoothing the more sluggish everything feels.
+
+
+
+When the Core returns the unstable events, there may be events with a future timestamp which are scheduled (perhaps tick events). It should remove these in its exposed interface of unstable events. But how does it determine what the current present timestamp is?
+
+Basic websocket server implementation from ChatGPT
+
+```dart
+// server.dart
+import 'dart:io';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+void main() async {
+  var server = await HttpServer.bind('127.0.0.1', 4040);
+  print('WebSocket server listening on 127.0.0.1:4040');
+
+  server.transform(WebSocketTransformer()).listen((WebSocketChannel channel) {
+    channel.stream.listen((message) {
+      print('Received: $message');
+      channel.sink.add('Server: $message');
+    });
+  });
+}
+```
+
+And client on the web:
+
+```dart
+// web/client.dart
+import 'dart:html';
+import 'package:web_socket_channel/html.dart';
+
+void main() {
+  var channel = HtmlWebSocketChannel.connect('ws://127.0.0.1:4040');
+  print('WebSocket client connected to ws://127.0.0.1:4040');
+
+  channel.stream.listen((message) {
+    print('Received: $message');
+  });
+
+  channel.sink.add('Hello, WebSocket from Web Client!');
+}
+```

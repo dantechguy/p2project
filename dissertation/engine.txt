@@ -1,27 +1,37 @@
-Engine
+= Discrete tick generator
 
 Parameters / inputs are:
+- Clock to know when to generate tick inputs.
+
+It generates as output:
+- Tick events for core engine, as cutoff points for execution.
+
+
+= Engine
+
+Parameters / inputs are:
+- Initial environment state.
 - The latency cutoff. What is the maximum latency between the server and client the game supports.
 - Real-time sequence of events. It stores these internally.
 - A state step function. Given a current environment, step forward a certain amount of time.
 
 It exposes as output:
 - The current stable environment state.
-- Sequence of current, unstable, events. These may be deleted or re-ordered.
+- Sequence of current, unstable, events. These may be deleted or re-ordered. It will only show unstable events up to the present: not any scheduled future events.
 
 
-Unstable runner
+= Unstable runner (stateless)
 
 Parameters / inputs are:
-- ? Real-time sequence of events. Unsure if this module passes events into its internal core module. Probably.
-- The core module. 
+- Last stable state
+- List of unstable events
 - A state step function.
 
 It exposes as output:
 - The current unstable environment state.
 
 
-Lightweight tickless approximator
+= Lightweight tickless approximator
 
 Parameters / inputs are:
 - Current environment state.
@@ -31,9 +41,10 @@ It exposes as output:
 - A current envstate which is continuous.
 
 
-Interpolator / smoother
+= Interpolator / smoother
 
 Parameters / inputs are:
+- Interpolation curve
 - Sequence of envstates over time.
 
 It exposes as output:

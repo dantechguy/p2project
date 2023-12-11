@@ -164,7 +164,29 @@ This makes building secure online games more accessible, and means more players 
 = Preparation
 Explain how system works? Explain what an event object consists of? Theory behind future modification, the latency cutoff, and the consequences for cheating.
 
+Software engineering techniques used. I used an iterative waterfall approach, where I laid out the individual modules and how they operate at a high level first. Then within each module I developed the overarching interface, iterating until all connected modules could work well together. Finally I implemented the interfaces.
+
+Talk about starting point of Flutter, and the high level theory behind the anticheat system.
+
 = Implementation
+
+// All extensions lie under one of these three categories, so write about them there.
+// What should you actually write about here?: The work that was produced
+// - Programs written
+// - Theories developed
+// - (after:) Major milestones
+
+== Anticheat System Theory
+? Have this be its own section?
+- Theoretical model improved upon. 
+- Updated interpolation layers.
+- Refined data and signal flow (what triggers what and when, and where does data go)
+- Refined what information was needed to perform all tasks.
+- Specified the best way to generalise certain operations (although is this implementation specific?)
+
+== Networking (both client and server developed together)
+- First designed a testing suite for each of the modules. As each module layers on top of the previous, you run a test on the core layer, then add a layer and test again, and repeat.
+- By running on a simple 1D input for general correctness, I knew the underlying code was correct and functional.
 
 == UI and Graphics
 - Produce as a function which takes an envstate and canvas and draws on the canvas.
@@ -174,10 +196,12 @@ Explain how system works? Explain what an event object consists of? Theory behin
 == Game Driver
 - Produce as a function which takes an envstate and a set of events, and simulates n ticks modifying the passed envstate or returning a new copy.
 
-== Networking (both client and server developed together)
-- 
+== Reposity Overview
+- Highlight which parts of the repo are my own and which are Flutter's.
+- Describe what different parts of the code do.
 
 = Evaluation
+- "Visual validation"
 
 
 = Conclusions
