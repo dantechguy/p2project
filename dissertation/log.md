@@ -464,3 +464,20 @@ After ironing and finalising out a few kinks, next steps are to test the Core. T
 3. Finalise client networking kinks
 4. Test
    - Do basic command tests, then do graph tests. Will need to write custom driver for this.
+   - Command tests:
+     - Server works, commands are relayed
+     - Add artificial delay. Command within latency cutoff are ordered, and outside are dropped.
+     - Must show it is:
+       - distributed (appears on all clients, without server computation)
+       - synchronised (all clients see the same thing)
+       - ordered (out of order commands within latency cutoff are re-ordered)
+       - timestamped (all commands have time of creation)
+       - sequence (there is a total order of commands)
+   - Graph tests
+     - Do more graph tests once Smoother module written
+     - Each graph adds a new layer. Multi players with varied latency, events to move up/down 1D point over ticks:
+       - No latency points (truth. Looks stable because all players inputs cancel out nicely)
+       - Events through core module (delayed by cutoff latency, but stable copy of previous)
+       - Events through unstable runner (points looks shaky from varied client latencies)
+       - Tickless approximator (points join to form line, discontinuous jumps at new events)
+       - Smoother (line becomes continuous from smoothing)
