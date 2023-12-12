@@ -1,5 +1,7 @@
 Dan Wendon-Blixrud (drw48) Dissertation Log
 
+Current loose-ends have "[???]"
+
 # 2023/10/20 (3 hours)
 Setup local and github git repos for proposal, dissertation, and code. Have a local Typst compiler and vscode extension for writing the dissertation.
 
@@ -349,13 +351,17 @@ How do you know when to bake in an event? You have a latencyCutoff and event tim
 
 In the Env driver function, how are events inputted / processed into the Env? All inputs from all players should be inputted into the Env as events, including local user inputs. The Env should ONLY be modified from events, not anywhere else in the system.
 
-And how are local user inputs (which don't come from the server) inputted into it too?
+And how are local user inputs (which don't come from the server) inputted into it too? [???]
+|
+
 
 # 2023/12/11
 Before I was unsure if the input to the Core should be an object or a stream. I want the tick generator to wrap the inputs to the Core, rather than the Core itself, as it modifies the inputs rather than the outputs. This means it matches the decorator pattern.
 |
 To have it do the same, there's no way to have it wrap the inputs to generate new tick events if it's an object. It would have the wrap the core object. So we must make the input an event stream for this reason: so the Core can wrap *it*.
 |
+It should be a single-subscription stream, as guided by the Dart docs, as you need to receive all of the events in the correct order. A broadcast stream would insinuate that it's acceptable to miss some of the events, which it's not.
+
 The Tick Generator can generate new tick events either from a regular interval timer, and from receiving new events.
 |
 How do we ensure that the local client reacts instantly to user input? Because in the current model it can only react once it receives a tick event. What if the driver computed a new unstable Env state for all the current states, regardless of when the last tick event was given, but only bakes and saves envs that were computed in tick events? Or is this what happens already?
@@ -384,7 +390,8 @@ Should this be done in the driver and tick generator, or in the tickless approxi
   Question is then that is there a type of system that this wouldn't fit? Are there some ticked systems that simply wouldn't work having to be defined in terms of variable computation differences?
   |
   Option (2) Tickless approximator
-
+  |
+  ...
 |
 Does it even make sense to have this? Would it just be better to have the driver update the computation per event, *as well* as the tick period? This way everyone would see the instant reaction. Otherwise the instant reaction is just an illusion for the local player, as the temp-tick event gets pushed back and their input gets computed at the next tick boundary anyway.
 |
@@ -392,11 +399,21 @@ The adding 'temp-tick' event always at the current timestamp won't work, if the 
 |
 One concern is that there will a lot of events generated which will be difficult to compute for low-level devices. Perhaps we have a maximum rate of events generated for each user? Bulk computing events will still be far more efficient though. This is a design choice a game driver designer will make, but ideally you would want the (local?) reactivity of per-event computation, but with the efficiency of bulk computation. Is there some way to have the local user temporarily and locally-only be in a hyper-reactive state where all inputs are computed as soon as they're generated, but they interpolate back to the bulk-tick computation state after a short period? Would this look or feel bad?
 |
-The max extent of the 'bad' feeling would be moving 'back' by the tick period, over a period of the Smoothing period. So if the Smoothing period and tick period were the same, would you just be frozen in place for a duration of the period? Perhaps if the Smoothing interpolation was linear. Without Smoothing you would teleport back. So you would want to make sure that the Smoothing was longer than the tick period, but the longer the Smoothing the more sluggish everything feels.
+The max extent of the 'bad' feeling would be moving 'back' by the tick period, over a period of the Smoothing period. So if the Smoothing period and tick period were the same, would you just be frozen in place for a duration of the period? Perhaps if the Smoothing interpolation was linear. Without Smoothing you would teleport back. So you would want to make sure that the Smoothing was longer than the tick period, but the longer the Smoothing period the more sluggish everything feels.
+|
+  What if you smooth the player's movement separately to other entities? What about things like shooting? It would be weird if your shot was actually delayed by a tick. So there's no perfect solution for all cases, to have bulk computation and fast responses. If you want fast responses, you must 
+|
+So is there no good answer? Your options for computation are:
+- Euler approximation:
+  - Bulk compute every regular tick period
+  - Compute at every event, and regular tick period
+- Continuous computation (not obvious, need continuous physical equations)
+|
+I guess the only thing to do is choose between the Euler approximation solutions. The tick period is very small, and at least with a racing game with continuous steering, I think it would be acceptable to have this slight input delay.
 
-
-
-When the Core returns the unstable events, there may be events with a future timestamp which are scheduled (perhaps tick events). It should remove these in its exposed interface of unstable events. But how does it determine what the current present timestamp is?
+When the Core returns the unstable events, there may be events with a future timestamp which are scheduled (perhaps tick events). It should remove these in its exposed interface of unstable events. But how does it determine what the current present timestamp is? [???]
+|
+A first response is that it doesn't matter hugely, as the unstable list can add or remove events per tick.
 
 Basic websocket server implementation from ChatGPT
 
@@ -437,3 +454,13 @@ void main() {
   channel.sink.add('Hello, WebSocket from Web Client!');
 }
 ```
+
+# 2023/12/12
+Done some more implementation of Client Networking Core today. Good stuff.
+
+After ironing and finalising out a few kinks, next steps are to test the Core. To do this I guess I need to have the server implementation running too. So next steps are:
+1. Write server networking
+2. Write client networking
+3. Finalise client networking kinks
+4. Test
+   - Do basic command tests, then do graph tests. Will need to write custom driver for this.
