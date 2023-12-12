@@ -1,13 +1,15 @@
 import 'dart:math';
+import 'package:blitzmania/core/event.dart';
+
 import '../shared/env.dart';
 import 'package:vector_math/vector_math.dart';
 
 const tickPeriodSecs = 0.05;
 
 /// Takes in an [Env] (including user inputs) and returns the next tick.
-Env drive(Env env) {
+Env drive(Env env, List<Event> events) {
   final envCopy = env.copy();
-  driveInplace(envCopy);
+  driveInplace(envCopy, events);
   return envCopy;
 }
 
@@ -15,7 +17,8 @@ Env drive(Env env) {
 /// TODO: At some point, we could do an OCaml style update which is more efficient.
 /// TODO: When/if physics becomes better (moments, forces, etc), generalise it.
 /// TODO: add an acceleration curve?
-void driveInplace(Env env) {
+void driveInplace(Env env, List<Event> events) {
+  // TODO: There will be 'tick' events which signal a computation. We buffer events until the next tick, when they are all computed in one go. You could also convert the events into inputs (pre-computing), but there's not much difference here.
   for (Car car in env.cars) {
     final userInputs = env.inputs.firstWhere((inputObj) => inputObj.userId == car.userId);
 

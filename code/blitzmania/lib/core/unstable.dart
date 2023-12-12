@@ -1,30 +1,35 @@
 import 'package:blitzmania/shared/env.dart';
 
-import 'core.dart';
 import 'event.dart';
 
 /// Unstable Runner
 ///
 /// Parameters / inputs are:
-/// - ? Real-time sequence of events. Unsure if this module passes events into its internal core module. Probably.
-/// - The core module.
+/// - The core module, which contains:
+///   - Current stable state, and
+///   - List of unstable events.
 /// - A state step function.
 ///
 /// It exposes as output:
 /// - The current unstable environment state.
 ///
 class UnstableRunner {
+  UnstableRunner(
+      {required Env Function(Env, List<Event>) driver,
+      required Env Function() getStableState,
+      required List<Event> Function() getUnstableEvents})
+      : _driver = driver,
+        _getCurrentStableState = getStableState,
+        _getCurrentUnstableEvents = getUnstableEvents;
 
-  Core _core;
+  final Env Function() _getCurrentStableState;
 
-  Env Function(Env) driver;
+  final List<Event> Function() _getCurrentUnstableEvents;
 
-  // TODO: Have? See doc comments
-  void addEvent(Event event) {
-    throw UnimplementedError();
-  }
+  final Env Function(Env, List<Event>) _driver;
 
   Env getCurrentState() {
-    throw UnimplementedError();
+    // TODO: make more efficient by only recalculating from the last changed event.
+    return _driver(_getCurrentStableState(), _getCurrentUnstableEvents());
   }
 }

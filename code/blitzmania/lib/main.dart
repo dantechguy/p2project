@@ -55,6 +55,7 @@ class _BlitzAppState extends State<BlitzApp> {
 
     Timer.periodic(const Duration(milliseconds: 50), (timer) {
       setState(() {
+        // TODO: Inputs should be done via events. You should never directly set the Env.
         env.inputs = [input];
         driveInplace(env);
         print(env.cars.first.position);

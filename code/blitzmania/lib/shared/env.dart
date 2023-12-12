@@ -22,6 +22,7 @@ class Env {
         users: users.map((user) => user.copy()).toList(),
         inputs: inputs.map((input) => input.copy()).toList(),
         cars: cars.map((car) => car.copy()).toList(),
+        gameTime: gameTime,
       );
 }
 
@@ -62,6 +63,7 @@ class UserInput {
   /// Negative is left steering, positive is right.
   double steering;
 
+  // TODO: Somehow do OCaml-esque efficient copying.
   UserInput copy() => UserInput(
         userId: userId,
         accelerating: accelerating,
@@ -87,6 +89,7 @@ class Car {
 
   Vector2 position;
 
+  // TODO: consider adding acceleration here, even thought it is generated from user inputs.
   // TODO: maybe change to momentum
   Vector2 velocity;
   double direction;
@@ -100,15 +103,15 @@ class Car {
   Color col;
 
   Car copy() => Car(
-    userId: userId,
-    position: position,
-    velocity: velocity,
-    direction: direction,
-    mass: mass,
-    dragCoefficient: dragCoefficient,
-    maxAcceleration: maxAcceleration,
-    maxSteer: maxSteer,
-    size: size,
-    col: col,
-  );
+        userId: userId,
+        position: position,
+        velocity: velocity,
+        direction: direction,
+        mass: mass,
+        dragCoefficient: dragCoefficient,
+        maxAcceleration: maxAcceleration,
+        maxSteer: maxSteer,
+        size: size,
+        col: col,
+      );
 }
