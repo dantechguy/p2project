@@ -1,4 +1,4 @@
-= Discrete tick generator
+# Discrete tick generator
 
 Parameters / inputs are:
 - Clock to know when to generate tick inputs.
@@ -7,7 +7,7 @@ It generates as output:
 - Tick events for core engine, as cutoff points for execution.
 
 
-= Engine
+# Engine
 
 Parameters / inputs are:
 - Initial environment state.
@@ -20,7 +20,7 @@ It exposes as output:
 - Sequence of current, unstable, events. These may be deleted or re-ordered. It will only show unstable events up to the present: not any scheduled future events.
 
 
-= Unstable runner (stateless)
+# Unstable runner (stateless)
 
 Parameters / inputs are:
 - Last stable state
@@ -31,7 +31,7 @@ It exposes as output:
 - The current unstable environment state.
 
 
-= Lightweight tickless approximator
+# Lightweight tickless approximator
 
 Parameters / inputs are:
 - Current environment state.
@@ -41,7 +41,7 @@ It exposes as output:
 - A current envstate which is continuous.
 
 
-= Interpolator / smoother
+# Interpolator / smoother
 
 Parameters / inputs are:
 - Interpolation curve

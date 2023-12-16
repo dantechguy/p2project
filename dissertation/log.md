@@ -481,3 +481,115 @@ After ironing and finalising out a few kinks, next steps are to test the Core. T
        - Events through unstable runner (points looks shaky from varied client latencies)
        - Tickless approximator (points join to form line, discontinuous jumps at new events)
        - Smoother (line becomes continuous from smoothing)
+
+# 2023/12/14
+Got basic server client networking working. Multiple clients connect to a single server, with broadcast messages.
+
+Question regarding game time and timestamps. Without Re-Connection extension, all clients must be connected before the timer is started. Then a game start event is sent to clients and all clients start running their timers. This must consider latency and clients' timers must be as close as possible to the server's.
+|
+  I guess technically clients don't have to be connected on timer start, you just have to ensure that no events have been sent. They are two separate start events: timer start and events start. Timer start must be before event start.
+|
+Should they continue to synchronise timers throughout the game, after game timer start? This would only be necessary if either their clocks drift (not sure how realistic this is?), or if the initial offset was inaccurate.
+|
+With the Re-Connection, clients must be able to join after the timer has started. This would be ideal and then you wouldn't need a timer start event and event start event. Joining clients would just synchronise timers (be told what the time is) and the last baked event + all events since.
+|
+[???]
+
+Regardless we'll need a 'synchronise timers' mechanic. The core system will call it once at the timer start. Is it better for all clients (and the server) to synchronise with an external NTP server (like time.google.com) or for all clients to synchronise with the server (using a more primitive algorithm perhaps).
+|
+For now I'll implement a simple round-trip latency based clock synchronisation mechanism.
+
+How would re-synchronisation work? If clients synchronise again with the server and the offset is different. First, what does it mean that it's different? And second, what do you have to do to update the local timer?
+|
+  If a client and server timer are out of sync, what does this result in?
+  |
+    An early clock (this client is running ahead of all other clients):
+    - Send all inputs to other clients early. Means that all other clients receive this client's events with low latency.
+    - If the early clock offset is greater than the server-client latency, then all events arriving at the server will have generated timestamp in the future compared to the server clock. If the server discards future events, then all events from that client will be dropped.
+    - The early client will constantly predict all other clients for the offset more time.
+    - Generally a disadvantage to this client.
+    |
+    A late clock (this client is running behind all other clients):
+    - Delays all outputs to other clients.
+    - Receives events from other clients with lower latency / more stability (as essentially a buffer).
+    - All other players will predict this client a constant additional amount, by the offset.
+    - Advantages this player, close to cheating. If it didn't buffer events then it *would* be cheating.
+  |
+  What is the maximum offset manageable?
+  |
+    If a client is early, as long as the server doesn't throw away future events, theoretically any early offset is okay. The game will be unplayable at a certain point for that client, but nothing in the system will break. If the server discards early events, then if `early_offset > client_server_latency`, all events will be discarded and the client cannot play.
+    |
+    If a client is late, then if `late_offset + client_server_latency > latency_cutoff`, all events they send will arrive at the server past the latency cutoff and will be discarded, so they cannot play.
+  |
+  Small offsets in clocks is manageable and won't have much effect. Consider some leeway for future events, especially if latencies are very low (e.g. LAN). Given 20Hz ticks are 50ms long, a few milliseconds offset is okay.
+  |
+  If network synchronisation proves unusable, perhaps allow for manual synchronisation when users in same place, by tapping on screen at the same time? Black/white alternating flash at 1Hz which should line up. Or synchronise to same external NTP server as suggested above.
+|
+[???]
+
+It looks like it's impossible to accurately synchronise clocks with assymetric latencies, as shown here:
+- https://cs.stackexchange.com/questions/103/clock-synchronization-in-a-network-with-asymmetric-delays
+- https://stackoverflow.com/questions/1942877/determine-asymmetric-latencies-in-a-network
+- https://www.researchgate.net/publication/224183858_Fundamental_Limits_on_Synchronizing_Clocks_Over_Networks
+|
+NTP cannot account for it, as shown here:
+- https://timetoolsltd.com/ntp/ntp-timing-accuracy/
+This answer says most paths are asymmetric
+- https://serverfault.com/a/388939
+but I just have to hope that the asymmetries are minimal.
+
+For now, as it's all running on my machine, I won't implement clock synchronisation.
+
+When clients synchronise clocks, they will internally have two things: (1) A *local* datetime timestamp of when the game started, and (2) a *global* (within all clients and server) duration of how long the game has been going on.
+|
+The duration is the timestamp used for events, and this is shared between all clients and the server. The only difference between clients is the GameStart datetime timestamp. This timestamp represents the same point in time in the real world, but may be different across clients due to clock differences.
+|
+When clients sync, what they are really doing is updating their GameStart datetime timestamp.
+|
+The local datetime timestamp of an event can be calculated by adding the event's duration timestamp to the GameStart datetime timestamp. And a local datetime timestamp can be converted into an event duration timestamp by finding the elapsed time since the GameStart timestamp.
+|
+Using duration for timestamps makes monotonicity obvious, makes it an easy shared value, and makes synchronising easy (just change GameStart).
+
+Where should time handling be done? Inside of the core module? Or completely separately? It can be completely separate to the core module, I think. Yeah, the core module only ever deals in Durations, so any internal implementation will be separated out.
+|
+The time module is responsible for giving all clients a shared, monotonic clock, which produces GameTimestamps. A GameTimestamp represents a single moment of time within the game simulation.
+|
+  Does a GameTimestamp map to a moment in real-world time by definition? If clients sync to the server for time truth, then the server's clock is the mapping from GameTimestamp to real-world time.
+  |
+  If server and all clients sync to an external time service (NTP), then perhaps the server's clock can still be considered truth.
+  |
+  Or do we even require / need a true mapping from real-world time to GameTimestamp?
+|
+What are our minimum assumptions?
+- Clients are capable of monotonically increasing time with minor drift (occasional re-syncs).
+- Clients with significant drift will ruin gameplay for themselves, so purposeful modification is within expectations.
+- We cannot trust the same local client datetime to mean the same real-world time across clients.
+- We can figure out a mapping between clients' local datetimes for a moment in real-world time.
+|
+From the above, do we have a reference drift amount? Or a reference set of snapshot mappings from a local datetime to to GameTimestamp. This is the server's job.
+|
+So with a client-server based implementation of the Time Module, it must be able to communicate with the server, and provide all clients with a shared abstract GameTimestamp. The GameTimestamp flows in time along with the server, and each client tries to replicate the server's time as accurately as possible.
+|
+[???]
+
+In a peer-to-peer network, what is true clock rate? With a server, the server is the truth for the flow of time within the game. I guess in a peer-to-peer system there is no truth for the flow of time. So when would each client know they can bake in values to the core? What if another client misbehaves or stops sending events: then you wouldn't know when you can bake in events. We have no way of enforcing the latency cutoff in a peer-to-peer system.
+|
+It's even worse if using UDP, as then you can't even use one event as confirmation of timestamp passing on that client, to bake in events.
+|
+However this is for the UDP / peer-to-peer extensions, so won't think too hard about it now. But worth considering.
+|
+[???]
+
+TEMP THOUGHTS:
+The time module needs to expose / allow other code to:
+- Get the current GameTimestamp
+- ? Convert any local datetime timestamp into a GameTimestamp
+- Re-synchronise the clock
+
+- Get current duration / convert datetime into duration
+There also needs to be a way of synchronising clocks.
+
+# 2023/12/16
+Local events. They exist only as a temporary substitute for the real event, while the real event is travelling to the server and back. The sub' should never be baked in, only the real event, so the sub' should only exist within the unstable events list, and if it gets to the point where it would be baked in, it should be discarded. The idea is that the real event should make its way back to the client before the sub' would get baked in, and replace the sub event.
+|
+The real event should make it back in time before the sub' is discarded (if valid real event). [???]
