@@ -9,6 +9,7 @@
 
 An event may be discarded, but the same ID cannot be used for another event. The ID is built from GameID + SenderID + EventID, and is unique for the duration of the game.
 
+```
 {
     "generatedTimestamp": int (microseconds since game start?),
     "serverReceivedTimestamp": int (ditto)
@@ -16,3 +17,4 @@ An event may be discarded, but the same ID cannot be used for another event. The
     "action": string (what happened?),
     "senderID": int,
 }
+```
