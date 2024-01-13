@@ -680,3 +680,42 @@ There seem to be a lot of things built on top that need to be included into the 
   We can trust that inputs are stored in the Env because you can't pass inputs to the tick event. The tick (computation) event just uses the data it finds in the Env, so anything it's going to work with must be in there already.
 
 Why is there a requirement for monotonically increasing clock? Because the Core module bakes in Envs, and cannot go back in time. If it could, then there would be no requirement. It would also be technically possible to remove the latency cutoff, but you may not want to do that for anti-cheating reasons.
+
+# 2023/12/31
+(Quoted from before re: Time Module)
+|
+Internally it likely needs to communicate with the server, either through the events system or via a separate endpoint. It will need a reference from the Core to pass to the server, to know which room the client's in.
+|
+So, let's think implementation specifics for the Time Module now.
+|
+What is the time source? Server? Or external NTP? We can't control which external NTP server each client connects to (Google auto load-balances), so we must use server time. Each room can have it's own start time, and each event timestamp is a Duration since that start time. Each client performs a sync which sends the start time and calibrates the offset between the client and server clock.
+|
+Each client must be able to get the estimated current gameTime, and perform operations with the gameTimestamps (compare, difference, etc).
+
+# 2023/12/23
+The Core Module will need to take in a generic Env type at some point. Wondering if also should generic-ise the Event type (with an interface to ensure minimum needed info)?
+|
+[???]
+
+Trying to figure out how to practically separate out the Time Module (both server and client part) out from the core module. A client reference (e.g. room ID) would only be needed if I were accessing via a separate endpoint on the server, as it would be done through events otherwise.
+|
+I can't see how the Time Module can be completely separate, as it may need to intercept events. Although I suppose if you just consider it as another extension layer, but mandatory, then you could choose which implementation you wanted. And then even though implementation differences aren't hidden from the programmer, they are hidden from the Core Module. I think that's the right way round, as different type sync methods may suit different people.
+
+# 2024/1/11
+Just realised I'm not sure I've tracked how the Client sends events to the Server. I mean it's pretty straightforward: in the `addEvent` method of Core, just make sure you send it to the server.
+
+Now that actual networking is getting close, where should networking code be handled? It could be done inside the Core, but this leaves the Core fixed to a single communication channel. All the Core needs is a way to send and receive events from the server, and this could be done in many ways. So the Core should be passed a Network object? NO! Because Functions are the highest level structurally typed object, they must be used. Classes aren't structurally typed in Dart sadly.
+|
+But we don't actually need to create a separate interface, we already have one! We just create a class which exposes its stream to pass to the Core, and which has a 'send event to server' method which the Core can call.
+
+# 2024/1/12
+We could make both inputs and outputs to Core a Stream. Input events are already in a stream, but output is just a function you call to get current value. This makes sense as it supports any refresh rate. You could make the output a stream, but then you'd need a 'trigger' function which requests the Core push a new state into the Stream. You could also alternatively add a wrapper which calls the output function at regular intervals and exposes this as a stream, if you wanted that.
+
+# 2024/1/13
+Done lots of implementation stuff yesterday and today. Cleared up interfaces, got general architecture fixed. Great stuff.
+
+Question. The Core currently has two input sources of events. One is the stream from the server, with a tick generator and time sync interceptor. The other is the 'addEvent' function, which assumes a locally generated event.
+|
+No, just re-read, that isn't the case. The server event stream internally uses the `addEvent` method. Does this mean that we should make the `addEvent` method private, and have locally generated events also be inserted via the event stream? We could have a separate stream which adds on the "local" tag, which is merged with the server stream?
+
+Also going to separate out all re-usable code into a library, which is then imported into the Flutter project. Also to let the server use code.
