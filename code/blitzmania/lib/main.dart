@@ -1,8 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:blitzmania/ui/blitz_painter.dart';
+import 'package:blitzmania/core/core.dart';
+import 'package:blitzmania/core/extensions/tick_generator.dart';
+import 'package:blitzmania/core/extensions/tickless_approx.dart';
+import 'package:blitzmania/core/extensions/unstable.dart';
+import 'package:blitzmania/core/networking/client.dart';
+import 'package:blitzmania/core/time/time.dart';
 import 'package:blitzmania/physics/driver.dart';
+import 'package:blitzmania/ui/blitz_painter.dart';
 import 'package:blitzmania/ui/inputs.dart';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -10,7 +16,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'shared/env.dart';
 
 void main() {
-  runApp(BlitzApp());
+  runApp(const BlitzApp());
 }
 
 class BlitzApp extends StatefulWidget {
@@ -21,46 +27,47 @@ class BlitzApp extends StatefulWidget {
 }
 
 class _BlitzAppState extends State<BlitzApp> {
-  late Env env;
-
-
-  final input = UserInput(userId: 0, accelerating: 0, steering: 0);
+  late final Core<Env> _core;
+  late final NetworkingClient _networkingClient;
+  late final EventBasedTimeClient _timeClient;
+  late final Env Function() _getCurrentState;
 
   @override
-  void initState() {
+  void initState() async {
     super.initState();
+    _networkingClient = NetworkingClient();
+    await _networkingClient.initialise();
+    _timeClient = EventBasedTimeClient();
+    await _timeClient.initialise();
 
-    final testCar = Car(
-      userId: 0,
-      position: Vector2.zero(),
-      velocity: Vector2.zero(),
-      direction: 0,
-      mass: 1000,
-      dragCoefficient: 1000,
-      maxAcceleration: 3,
-      maxSteer: 2 * pi * 0.01,
-      size: Size(1, 2),
-      col: Colors.red,
+    final inputEventStream = _timeClient.interceptTimeSyncEvents(
+      addTickEvents(
+        _networkingClient.serverEventStream,
+        const Duration(milliseconds: 50), // Should be 3, and 37.24.
+      ),
     );
 
-    env = Env(
-      inputs: [],
-      users: [
-        User(displayName: 'dan', id: 0, connected: true),
-      ],
-      cars: [
-        testCar,
-      ],
+    final outputEventFunction = _timeClient.insertTimeSyncEvents(
+      _networkingClient.sendEvent,
     );
 
-    Timer.periodic(const Duration(milliseconds: 50), (timer) {
-      setState(() {
-        // TODO: Inputs should be done via events. You should never directly set the Env.
-        env.inputs = [input];
-        driveInplace(env);
-        print(env.cars.first.position);
-      });
-    });
+    _core = Core<Env>(
+      eventStream: inputEventStream,
+      sendEventToServer: outputEventFunction,
+      initialState:,
+      driver: drive,
+      unstablePeriod: const Duration(seconds: 1),
+      getCurrentEstimatedTime: _timeClient.getCurrentGameTime,
+    );
+
+    _getCurrentState = addTicklessApproximation(
+      getPrevState: runUnstableEvents(
+        driver: drive,
+        getStableState: _core.getCurrentState,
+        getUnstableEvents: _core.getUnstableEvents,
+      ),
+      getCurrentGameTime: _timeClient.getCurrentGameTime,
+    );
   }
 
   @override
@@ -72,7 +79,7 @@ class _BlitzAppState extends State<BlitzApp> {
           onSteer: (double steer) => input.steering = steer,
           onAccelerate: (double accelerate) => input.accelerating = accelerate,
           child: BlitzPaintWidget(
-            env: env,
+              env: _getCurrentState()
           ),
         ),
       ),

@@ -1,0 +1,1 @@
+// How to implement this in the server? Do we also have a pair of streams and write a pair of functions to intercept and insert events? This makes it easier as you can separate this from the rest of the server.

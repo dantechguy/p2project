@@ -19,6 +19,8 @@ Env drive(Env env, List<Event> events) {
 /// TODO: add an acceleration curve?
 void driveInplace(Env env, List<Event> events) {
   // TODO: There will be 'tick' events which signal a computation. We buffer events until the next tick, when they are all computed in one go. You could also convert the events into inputs (pre-computing), but there's not much difference here.
+
+  // TODO: Update to use input OR compute events. Some events only update inputs (between ticks), and some events compute the next tick (tick events, on the tick).
   for (Car car in env.cars) {
     final userInputs = env.inputs.firstWhere((inputObj) => inputObj.userId == car.userId);
 

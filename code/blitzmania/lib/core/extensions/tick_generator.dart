@@ -1,11 +1,12 @@
 import 'dart:async';
-
 import 'package:blitzmania/core/event.dart';
 
 /// Generates tick [Event]s from a clock and feeds them into the core. The core would likely use them to signal a computation unit.
 ///
 /// If the input to the [Core] was a stream, this would modify the input stream by adding in additional events.
 ///
+/// Make accept a `currentTime` value, which is the upper bound for ticks to be generated. However given the core can handle future events, you could technically add infinite ticks all at the start and it would still work. But that's not particularly nice.
+/// Make into named arguments?
 Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
   // We need a method of generating tick events ensuring none are missed. Worst case would be having events baked in without the tick event, which is irreversible.
   // The timestamp used for baking comes from the events inputted into Core, so we can use two triggers for generating tick events:
@@ -17,10 +18,15 @@ Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
   // We should generate a tick event at all multiples of tickPeriod, excluding zero.
 
   Duration lastTickEventTimestamp = Duration.zero;
+  // TODO: https://dart.dev/articles/libraries/creating-streams
+  // TODO: Check for no memory leaks? Use async* function?
   final streamController = StreamController<Event>();
 
-  void _generateTickEvents(Duration lastTickEventTimestamp,
-      Duration currentTimestamp, Duration tickPeriod) {
+  void generateTickEvents(
+    Duration lastTickEventTimestamp,
+    Duration currentTimestamp,
+    Duration tickPeriod,
+  ) {
     final newTickEvents = _generateNeededTickEvents(
         lastTickEventTimestamp, currentTimestamp, tickPeriod);
 
@@ -34,15 +40,16 @@ Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
   // What if this timer gets out of sync with the server?
   // AI: We could have a timer which is reset every time we receive a server event.
   // It will only be slightly out of sync, so if it's slightly too quick then it will just produce tick events in the future which we can handle. If it's too slow, then a missing tick will be handled by an event trigger.
-  // TODO: Consider making this sync up properly.
+  // Consider making this sync up properly.
+  // TODO: When should it start generating events?
   Timer.periodic(tickPeriod, (timer) {
     final currentTimestamp = tickPeriod * timer.tick;
-    _generateTickEvents(lastTickEventTimestamp, currentTimestamp, tickPeriod);
+    generateTickEvents(lastTickEventTimestamp, currentTimestamp, tickPeriod);
   });
 
-  // TODO: Consider writing this as a generator function, using `yield`, or using [eventStream.expand].
+  // Consider writing this as a generator function, using `yield`, or using [eventStream.expand].
   eventStream.forEach((Event event) {
-    _generateTickEvents(
+    generateTickEvents(
         lastTickEventTimestamp, event.generatedTimestamp, tickPeriod);
     streamController.add(event);
   });
@@ -50,9 +57,12 @@ Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
   return streamController.stream;
 }
 
-// TODO: Consider making this accept any time range.
-List<Event> _generateNeededTickEvents(Duration lastTickEventTimestamp,
-    Duration currentTimestamp, Duration tickPeriod) {
+// Consider making this accept any time range.
+List<Event> _generateNeededTickEvents(
+  Duration lastTickEventTimestamp,
+  Duration currentTimestamp,
+  Duration tickPeriod,
+) {
   final tickEvents = <Event>[];
   Duration tickTimestamp = currentTimestamp + tickPeriod;
   while (tickTimestamp < lastTickEventTimestamp) {

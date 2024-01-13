@@ -5,7 +5,7 @@
 ///
 /// It is immutable, and contains this information:
 /// - Generated timestamp. Used for clients to know when in game-time it occured, and therefore where to insert it.
-/// - Sender. Which client produced this event. Used to map inputs to players.
+/// - Sender. Which client (or the server?) produced this event. Used to map inputs to players.
 /// - Action. What input occurred.
 /// - ID. Unique identifier for this event for the sending client.
 /// - ? Server receipt timestamp. Used to discard events which arrive to the server late. Not sure if needed, as server may drop these events anyway.
@@ -14,6 +14,16 @@
 /// An event may be discarded, but the same ID cannot be used for another event. The ID is built from GameID + SenderID + EventID, and is unique for the duration of the game.
 ///
 class Event {
+  // TODO: Change timestamp type?
   final Duration serverReceiptTimestamp;
+  // TODO: Change timestamp type?
   final Duration generatedTimestamp;
+  // TODO: Change to ID type?
+  final int senderID;
+  // TODO: Change type?
+  final String type;
+  // TODO: Change type?
+  final int eventID;
+  // TODO: Finalise how local / server events work?
+  final bool isLocal;
 }

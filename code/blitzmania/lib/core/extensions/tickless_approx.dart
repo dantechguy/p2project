@@ -1,4 +1,3 @@
-import 'package:blitzmania/core/smoother.dart';
 import 'package:blitzmania/shared/env.dart';
 
 /// Lightweight tickless approximator
@@ -13,20 +12,21 @@ import 'package:blitzmania/shared/env.dart';
 /// It exposes as output:
 /// - A current envstate which is continuous.
 ///
-class TicklessExtrapolator {
-
-  /*
-  How to generalise?
-
-  You can specialise a bit by assuming standard euler physics. Write Env specific first,
-  then generalise afterwards?
-   */
-
-  // TODO: Either take in current game time, or amount of time to simulate.
-  Env getCurrentState(Env prevEnv, Duration currentGameTime) {
-
+///
+/// How to generalise?
+///
+/// You can specialise a bit by assuming standard euler physics. Write Env specific first,
+///     then generalise afterwards?
+/// TODO: Either take in current game time, or amount of time to simulate.
+Env Function() addTicklessApproximation({
+  required Env Function() getPrevState,
+  required Duration Function() getCurrentGameTime,
+}) {
+  return () {
+    final prevEnv = getPrevState();
     final env = prevEnv.copy();
-    Duration timeToSimulate = currentGameTime - prevEnv.gameTime;
+    final Duration currentTime = getCurrentGameTime();
+    Duration timeToSimulate = currentTime - prevEnv.gameTime;
     double dt = timeToSimulate.inMicroseconds / 1e6;
 
     for (final car in env.cars) {
@@ -41,5 +41,5 @@ class TicklessExtrapolator {
     }
 
     return env;
-  }
+  };
 }

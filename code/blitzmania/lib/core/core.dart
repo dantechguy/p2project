@@ -16,15 +16,19 @@ import '../shared/env.dart';
 ///
 ///
 ///
-class Core {
+class Core<State> {
   Core({
     required Stream<Event> eventStream,
-    required Env initialEnv,
-    required Env Function(Env, List<Event>) driver,
+    required State initialState,
+    required State Function(State, List<Event>) driver,
     required Duration unstablePeriod,
-  })  : _bakedEnv = initialEnv,
+    required Duration Function() getCurrentEstimatedTime,
+    required void Function(Event) sendEventToServer,
+  })  : _bakedState = initialState,
         _driver = driver,
-        _unstablePeriod = unstablePeriod {
+        _unstablePeriod = unstablePeriod,
+        _getCurrentEstimatedTime = getCurrentEstimatedTime,
+        _sendEventToServer = sendEventToServer {
     _listenToEventStream(eventStream);
   }
 
@@ -35,11 +39,13 @@ class Core {
     // TODO: On error means that a network error may have occurred? Depends on what we define, and what's pre-defined within the Stream spec. If a network error occurred we need the Re-Connection extension to kick in.
   }
 
+  final void Function(Event) _sendEventToServer;
+
   /// The latency cutoff.
   final Duration _unstablePeriod;
 
   // TODO: Initialise with starting state.
-  Env _bakedEnv;
+  State _bakedState;
 
   // Can contain events with a timestamp past the current timetamp: schedule future events.
   List<Event> _unstableEvents = [];
@@ -52,9 +58,13 @@ class Core {
 
   // TODO: Keep allowing to change? Or make immutable? I think immutable is best. Any dynamic change of behaviour can be built-in (?).
   // TODO: Make a driver typedef
-  final Env Function(Env, List<Event>) _driver;
+  final State Function(State, List<Event>) _driver;
+
+  // This is our local clients best estimate of what the current time is.
+  final Duration Function() _getCurrentEstimatedTime;
 
   // TODO: Turn into a stream? This would make it a parameter, and more explicitly an input to the system. But a function is less language (dart) specific.
+  // Adds a LOCAL event to the system. This means it will be sent to the server, and marked as local, meaning it'll be removed if no server confirmation is received.
   void addEvent(Event event) {
     // Current implementation bakes new state as soon as possible (an event exceeds the latency cutoff).
     // When should you check for this? When adding a new event?
@@ -82,11 +92,12 @@ class Core {
     //   I guess the best thing we can do is a binary search here if we want to keep it simple and performant
     //   over a large variety of event arrival rates.
 
+    // TODO: In a peer-to-peer system, there is no last confirmed server timestamp. How do you know when to bake, and when you've received all events past a certain timestamp? If using TCP, you can keep a lastConfirmedClientTimestamp for each client, and use that to know when you can bake events from them past a certain timestamp. This doesn't work if using UDP. Also, what if a client misbehaves or stops sending events, then no events can be baked. You need some way to enforce the latency cutoff.
     final cutoffTimestamp = _lastConfirmedServerTimestamp - _unstablePeriod;
     final cutoffIndex = _indexOfFirstEventPastTimestamp(cutoffTimestamp);
     final eventsToBake = _unstableEvents.sublist(0, cutoffIndex);
     _unstableEvents.removeRange(0, cutoffIndex);
-    _bakedEnv = _driver(_bakedEnv, eventsToBake);
+    _bakedState = _driver(_bakedState, eventsToBake);
   }
 
   int _indexOfFirstEventPastTimestamp(Duration timestamp) {
@@ -108,9 +119,9 @@ class Core {
   }
 
   // TODO: make a getter?
-  Env getCurrentState() {
+  State getCurrentState() {
     _bakeEventsPastLatencyCutoff();
-    return _bakedEnv;
+    return _bakedState;
   }
 
   // TODO: make a getter?
@@ -121,7 +132,7 @@ class Core {
     _bakeEventsPastLatencyCutoff();
 
     // TODO: What is the source for the current time?
-    final currentTimestamp;
+    final currentTimestamp = _getCurrentEstimatedTime();
     final cutoffIndex = _indexOfFirstEventPastTimestamp(currentTimestamp);
     final unstablePastEvents = _unstableEvents.sublist(0, cutoffIndex);
     return unstablePastEvents;
