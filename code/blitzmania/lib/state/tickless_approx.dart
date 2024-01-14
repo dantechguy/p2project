@@ -1,4 +1,5 @@
-import 'package:blitzmania/shared/env.dart';
+
+import 'package:blitzmania/state/state.dart';
 
 /// Lightweight tickless approximator
 ///
@@ -18,8 +19,8 @@ import 'package:blitzmania/shared/env.dart';
 /// You can specialise a bit by assuming standard euler physics. Write Env specific first,
 ///     then generalise afterwards?
 /// TODO: Either take in current game time, or amount of time to simulate.
-Env Function() addTicklessApproximation({
-  required Env Function() getPrevState,
+RacingState Function() addTicklessApproximation({
+  required RacingState Function() getPrevState,
   required Duration Function() getCurrentGameTime,
 }) {
   return () {

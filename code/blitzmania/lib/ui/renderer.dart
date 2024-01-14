@@ -1,11 +1,11 @@
+import 'package:blitzmania/state/state.dart';
 import 'package:flutter/material.dart';
 
-import '../shared/env.dart';
 
 final Paint grassPaint = Paint()..color = Colors.green;
 
 /// Renders an [env] to a [canvas], with a viewport of size [size].
-void render(Env env, Canvas canvas, Size size) {
+void render(RacingState env, Canvas canvas, Size size) {
   canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), grassPaint);
 
   canvas.translate(size.width/2, size.height/2);

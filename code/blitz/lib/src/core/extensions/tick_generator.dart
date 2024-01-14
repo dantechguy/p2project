@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:blitzmania/core/event.dart';
+
+import 'package:blitz/src/core/event.dart';
 
 /// Generates tick [Event]s from a clock and feeds them into the core. The core would likely use them to signal a computation unit.
 ///

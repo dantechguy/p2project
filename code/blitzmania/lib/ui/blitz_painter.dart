@@ -1,11 +1,11 @@
+import 'package:blitzmania/state/state.dart';
 import 'package:blitzmania/ui/renderer.dart';
 import 'package:flutter/cupertino.dart';
-import '../shared/env.dart';
 
 class BlitzPaintWidget extends StatelessWidget {
   const BlitzPaintWidget({super.key, required this.env});
 
-  final Env env;
+  final RacingState env;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class BlitzPaintWidget extends StatelessWidget {
 class BlitzPainter extends CustomPainter {
   const BlitzPainter({required this.env});
 
-  final Env env;
+  final RacingState env;
 
   @override
   void paint(Canvas canvas, Size size) {

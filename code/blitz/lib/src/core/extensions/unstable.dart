@@ -1,4 +1,5 @@
-import 'package:blitzmania/core/event.dart';
+
+import 'package:blitz/src/core/event.dart';
 
 /// Unstable Runner
 ///

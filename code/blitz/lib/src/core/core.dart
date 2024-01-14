@@ -1,6 +1,5 @@
-import 'package:blitzmania/core/event.dart';
 
-import '../shared/env.dart';
+import 'package:blitz/src/core/event.dart';
 
 /// The inner-most core module of anticheat.
 ///

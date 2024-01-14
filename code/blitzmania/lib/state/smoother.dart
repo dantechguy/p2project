@@ -1,7 +1,4 @@
-
-
-
-import 'package:blitzmania/shared/env.dart';
+import 'package:blitzmania/state/state.dart';
 import 'package:flutter/animation.dart';
 
 /// Interpolator / smoother
@@ -48,17 +45,17 @@ class Smoother {
 
   // Internal store of previous Env's. This is interpolation approach specific.
   // Here we have a 'cum' env, for an exponential smoothing.
-  late Env prevEnv;
+  late RacingState prevEnv;
 
-  Env getCurrentState(Env unstableEnv) {
+  RacingState getCurrentState(RacingState unstableEnv) {
     // For all values, take 0.5 of [prevEnv] and 0.5 of [unstableEnv].
     // Then update [prevEnv] to the result.
 
     final env = unstableEnv.copy();
 
     for (final car in env.cars) {
-      car.position = prevEnv.
+      // car.position = prevEnv.
     }
-
+    return env;
   }
 }

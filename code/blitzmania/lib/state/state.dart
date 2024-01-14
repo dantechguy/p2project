@@ -1,12 +1,11 @@
 import 'dart:ui';
-
 import 'package:vector_math/vector_math.dart';
 
 /// Representation of the environment at an instant in time.
 ///
 /// Stores:
-class Env {
-  Env({
+class RacingState {
+  RacingState({
     required this.gameTime,
     required this.users,
     required this.cars,
@@ -18,7 +17,7 @@ class Env {
   List<UserInput> inputs;
   List<Car> cars;
 
-  Env copy() => Env(
+  RacingState copy() => RacingState(
         users: users.map((user) => user.copy()).toList(),
         inputs: inputs.map((input) => input.copy()).toList(),
         cars: cars.map((car) => car.copy()).toList(),

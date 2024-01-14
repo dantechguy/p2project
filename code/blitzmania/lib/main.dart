@@ -1,19 +1,14 @@
-import 'dart:async';
-import 'dart:math';
-
-import 'package:blitzmania/core/core.dart';
-import 'package:blitzmania/core/extensions/tick_generator.dart';
-import 'package:blitzmania/core/extensions/tickless_approx.dart';
-import 'package:blitzmania/core/extensions/unstable.dart';
-import 'package:blitzmania/core/networking/client.dart';
-import 'package:blitzmania/core/time/time.dart';
-import 'package:blitzmania/physics/driver.dart';
+import 'package:blitz/core.dart';
+import 'package:blitz/extensions.dart';
+import 'package:blitz/networking.dart';
+import 'package:blitz/time.dart';
+import 'package:blitzmania/state/driver.dart';
+import 'package:blitzmania/state/state.dart';
+import 'package:blitzmania/state/tickless_approx.dart';
 import 'package:blitzmania/ui/blitz_painter.dart';
 import 'package:blitzmania/ui/inputs.dart';
 import 'package:flutter/material.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
-import 'shared/env.dart';
 
 void main() {
   runApp(const BlitzApp());
@@ -27,10 +22,10 @@ class BlitzApp extends StatefulWidget {
 }
 
 class _BlitzAppState extends State<BlitzApp> {
-  late final Core<Env> _core;
+  late final Core<RacingState> _core;
   late final NetworkingClient _networkingClient;
   late final EventBasedTimeClient _timeClient;
-  late final Env Function() _getCurrentState;
+  late final RacingState Function() _getCurrentState;
 
   @override
   void initState() async {
@@ -51,10 +46,10 @@ class _BlitzAppState extends State<BlitzApp> {
       _networkingClient.sendEvent,
     );
 
-    _core = Core<Env>(
+    _core = Core<RacingState>(
       eventStream: inputEventStream,
       sendEventToServer: outputEventFunction,
-      initialState:,
+      initialState: RacingState(),
       driver: drive,
       unstablePeriod: const Duration(seconds: 1),
       getCurrentEstimatedTime: _timeClient.getCurrentGameTime,

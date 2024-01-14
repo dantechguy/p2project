@@ -1,23 +1,22 @@
 import 'dart:math';
-import 'package:blitzmania/core/event.dart';
-
-import '../shared/env.dart';
+import 'package:blitz/core.dart';
+import 'package:blitzmania/state/state.dart';
 import 'package:vector_math/vector_math.dart';
 
 const tickPeriodSecs = 0.05;
 
-/// Takes in an [Env] (including user inputs) and returns the next tick.
-Env drive(Env env, List<Event> events) {
+/// Takes in an [RacingState] (including user inputs) and returns the next tick.
+RacingState drive(RacingState env, List<Event> events) {
   final envCopy = env.copy();
   driveInplace(envCopy, events);
   return envCopy;
 }
 
-/// Drives [Env] in place.
+/// Drives [RacingState] in place.
 /// TODO: At some point, we could do an OCaml style update which is more efficient.
 /// TODO: When/if physics becomes better (moments, forces, etc), generalise it.
 /// TODO: add an acceleration curve?
-void driveInplace(Env env, List<Event> events) {
+void driveInplace(RacingState env, List<Event> events) {
   // TODO: There will be 'tick' events which signal a computation. We buffer events until the next tick, when they are all computed in one go. You could also convert the events into inputs (pre-computing), but there's not much difference here.
 
   // TODO: Update to use input OR compute events. Some events only update inputs (between ticks), and some events compute the next tick (tick events, on the tick).

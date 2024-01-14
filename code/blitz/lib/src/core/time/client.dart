@@ -1,6 +1,6 @@
 
 
-import 'package:blitzmania/core/event.dart';
+import 'package:blitz/src/core/event.dart';
 
 /// A module which exposes the current game-time to the Core (and rest of system).
 ///

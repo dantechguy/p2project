@@ -14,6 +14,15 @@
 /// An event may be discarded, but the same ID cannot be used for another event. The ID is built from GameID + SenderID + EventID, and is unique for the duration of the game.
 ///
 class Event {
+  Event({
+    required this.serverReceiptTimestamp,
+    required this.generatedTimestamp,
+    required this.senderID,
+    required this.type,
+    required this.eventID,
+    required this.isLocal,
+  });
+
   // TODO: Change timestamp type?
   final Duration serverReceiptTimestamp;
   // TODO: Change timestamp type?
