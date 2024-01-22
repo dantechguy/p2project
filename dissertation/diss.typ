@@ -176,6 +176,48 @@ Talk about starting point of Flutter, and the high level theory behind the antic
 // - Theories developed
 // - (after:) Major milestones
 
+// Any design strategies that looked ahead to the testing stage should be described in order to demonstrate a professional approach was taken
+
+# TODO: going through log to add to implementation. At line 64 atm.
+
+- Overall parts that I developed
+  - System architecture
+    - All functionality is separated into individual and independent modules.
+    - There is no dependence on library defined types (classes / interfaces). All interfaces are defined by structural typing through Function types.
+    - The developer themselves composes a game engine with only the functionality needed.
+    - No part of implementation is forced on developer, and all parts can be individually replaced with custom implementations. 
+      - No pre-made assumptions on ticks, if any.
+      - Network protocol is completely customisable, from medium to serialisation format.
+    - Client-server communication pipeline is similar to IP stack in that each layer wraps the layer below, and communicates with the same layer on the other side.
+    - Environment state
+      - Immutable in principle, mutable in practise to make updates more efficient.
+        - Consider how to make immutable but with cheap updates, like OCaml: only nodes from root to changed node are newly generated.
+        - Important for future efficient dependency computation.
+      - Stores user's last inputs, which are updated when a user input event is received.
+      - Needs to store list of users, and keep track of if any are disconnected. Need to consider how and if we'll handle users connecting, disconnecting, and reconnecting.
+    - Early question was where was the system going to be driven from? Would the window call the Core to get the state when it was about to render a new frame? Would the Core push regular updates at ticks to the renderer? Would the core only update when it received an event?
+      - I decided on having the core only update on events, and implemented ticks as events.
+      - This stemmed from that the engine should be independent of screen refresh rate. This meant that the renderer would have to call the core when it wanted the state, rather than the core pushing state to the renderer.
+  - Client core module
+  - Server core module
+  - Wrapper modules between server and client
+    - Time sync module
+    - Tick generator
+      - Researched how ticks were generated in other Flutter game engines. They have a simple callback timer which calls the game.update function once per tick. It then sets a flag notifying that the window can be re-rendered.
+      - Flame tick implementation was expected but didn't fit into my engine's core's design. 
+      - The Core module only reacted and performed computation when it received an event. 
+      - Hard-coding a tick timer was the immediate option, but made more sense to have the ticks be an event instead. This fit into the existing design, and means the tick generation is completely customisable and not baked into the game engine.
+    - UI input event inserter
+    - Event serialiser
+  - Wrapper modules between Core and renderer
+    - Unstable runner
+    - Tickless approximator
+    - Smoother / interpolator
+  - Networking modules
+  - Rendering engine
+  - Game driver
+    - Stores some values as doubles, which don't always have determinstic results on all platforms. Would need to convert to a det' alternative.
+
 == Anticheat System Theory
 ? Have this be its own section?
 - Theoretical model improved upon. 

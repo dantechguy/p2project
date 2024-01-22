@@ -719,3 +719,55 @@ Question. The Core currently has two input sources of events. One is the stream 
 No, just re-read, that isn't the case. The server event stream internally uses the `addEvent` method. Does this mean that we should make the `addEvent` method private, and have locally generated events also be inserted via the event stream? We could have a separate stream which adds on the "local" tag, which is merged with the server stream?
 
 Also going to separate out all re-usable code into a library, which is then imported into the Flutter project. Also to let the server use code.
+
+Started separating out re-usable code into a separate blitz library. It's gone super smoothly. Next steps are to continue moving code over. Then I need to implement the networking client and server modules using websockets! Once that's done, and a little bit of general clean-up is done, the Client Networking and Server Networking modules will be done!
+|
+They will need to be tested, and I need to get some data for graphs on evaluation, which will take some time.
+
+# 2024/1/14
+I've separated out the re-usable code from the Flutter Blitzmania project into a separate library Blitz, which it imports. Also cleaned up the file structure.
+
+Implemented basic client networking module. May need to reconsider hierarchy of files in library, separating code between client and server?- rather than combined together by function (e.g. time/client and time/server). Maybe have separate server and client `Event` classes too (since server events can't be local).
+
+Here's an interesting idea for communication across the WS channel. Rather than including higher level commands within the `Event` object (which would be wasteful as they don't need all the same timing and meta-info), we *wrap* the inner command with a header for the upper 'protocol'. A bit like the IP stack, each wrapped layer adds its own info when sending data, and the layers are 'peeled' away upon receipt as they move back along the stack. To keep things simple, perhaps the header and body are separated by a single `:`, and when no data is sent the header data is just left empty.
+|
+But then we'll need to change the type of the Networking Client and Server, as you would then still be sending `String`s through the wrapper layers as they need to split on `:`. So then the JSON string to `Event` object would be a wrapper layer in itself?- rather than included directly in the Networking code?
+|
+We also need to consider and allow different formats to be used, for forwards compatability. Say if binary gRPC were used over current JSON. We should at least separate out the WS to `Event` conversion into its own wrapper/layer. And then we just say that the current layers just operate on an assumption of receiving and filtering Events, but couuld be moved to a binary or text format instead at any point.
+
+# 2024/1/15
+Using a Stream transformer! Finishing off the Server Networking I think!
+
+Does the a client need to know its ID? It would need to know the IDs for the other clients to be able to map their inputs to state changes. And the exact same logic would be used for it, so yes, the Core does need to know its own ID and put it on its own Events.
+
+Tick events are a special event. They are not local events, but never sent through the server. As they are generated deterministically across all clients locally, we alleviate the need for this.
+|
+But who is the sender of tick events? I suppose they could have no sender, and I guess it doesn't really matter. But if it were to have a sender, it would the server. And I presume the server has an ID of zero (0)?
+
+# 2024/1/16
+Core needs three things before can function:
+- Own Client ID. Can't generate local events without it.
+- Unstable period value. Can't bake events in without it.
+- Time sync. Can't generate or bake events, or render tickless without it.
+
+We need to initialise them *after* they've been added into the network pipeline. Figured it out, its really nice, already fits in with what I was doing. You just have to call the initialise methods *after* all of the I/Os are connected together, and make sure that you `await` any dependency modules.
+|
+This means that the Core module isn't instantiated until everything is ready to go. It also means that establshing websocket connection does not mean it is ready. How do the server and client tell each other they're ready, and what happens once they are?
+|
+Both server and client could have processing they need to do? Difference is that the client processing is stuff that needs to happen before it can communicate. Not sure if the server has any stuff like that. 
+|
+An example could be if the server needed the clients MAC address before the server could add the client to its id:websocket map. How would you implement this?
+
+# 2024/1/17
+Two current questions. How can the server perform async processing for client before ready? And how can server react to new client connection? Current resolution: it's not needed right now, so we don't implement it. The server is a simple data relay system.
+
+I've decided to make all fields in Event nullable. I realise this reduces it to a limited map, but currently we're just filling unneeded values with meaningless values, which is less useful than having them explicitely `null`.
+|
+Although TBF this is because I'm abusing the `Event` object for non-event tasks, like time syncing. So this example shouldn't be considered as justification.
+
+# 2024/1/22
+Users joining and leaving should be treated just as another event. Perhaps you can have a 'is user allowed to join' module which the networking module calls?
+|
+Assume no authentication module, so clients can always join. When a client joins they're added to the user list in the room, and receive all events from that point onwards. All clients (incl. new one) then receive a 'new client X just joined' event. Consider how 'save state on server' module would work and send this state to the client.
+|
+Should we allow clients to disconnect and re-connect and keep same session? This could be added as a layer on top. When client connects again, they can send their previous ID (with some session token or smth), and the server can then send a 'change user ID' event to all clients. On disconnect it means user isn't removed from list in env state, but just potentially marked as disconnected, and on 'change user id' its updated to new user ID, and then client connected event sent? Something like that.
