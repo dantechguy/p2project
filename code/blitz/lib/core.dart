@@ -1,2 +1,2 @@
 export 'src/core/core.dart' show Core;
-export 'src/core/event.dart' show Event;
+export 'src/core/events/event.dart' show Event;

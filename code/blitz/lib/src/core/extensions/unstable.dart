@@ -1,5 +1,5 @@
 
-import 'package:blitz/src/core/event.dart';
+import 'package:blitz/src/core/events/event.dart';
 
 /// Unstable Runner
 ///

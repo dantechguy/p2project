@@ -1,5 +1,5 @@
 
-import 'package:blitz/src/core/event.dart';
+import 'package:blitz/src/core/events/event.dart';
 
 /// The inner-most core module of anticheat.
 ///
@@ -14,7 +14,6 @@ import 'package:blitz/src/core/event.dart';
 /// - Sequence of current, unstable, events. These may be deleted or re-ordered. It will only show unstable events up to the present: not any scheduled future events.
 ///
 ///
-///
 class Core<State> {
   Core({
     required Stream<Event> eventStream,
@@ -23,6 +22,7 @@ class Core<State> {
     required Duration unstablePeriod,
     required Duration Function() getCurrentEstimatedTime,
     required void Function(Event) sendEventToServer,
+
   })  : _bakedState = initialState,
         _driver = driver,
         _unstablePeriod = unstablePeriod,
@@ -62,7 +62,7 @@ class Core<State> {
   // This is our local clients best estimate of what the current time is.
   final Duration Function() _getCurrentEstimatedTime;
 
-  // TODO: Turn into a stream? This would make it a parameter, and more explicitly an input to the system. But a function is less language (dart) specific.
+  // TODO: Turn private, and have the parameter stream be the only input.
   // Adds a LOCAL event to the system. This means it will be sent to the server, and marked as local, meaning it'll be removed if no server confirmation is received.
   void addEvent(Event event) {
     // Current implementation bakes new state as soon as possible (an event exceeds the latency cutoff).
@@ -71,6 +71,8 @@ class Core<State> {
     // TODO: Add [event] in the correct position in [_unstableEvents], based on its timestamp.
     // TODO: update [_lastConfirmedServerTimestamp] if [event] is the latest event.
     // TODO: run [_bakeEventsPastLatencyCutoff].
+    // TODO: If same event ID and sender ID, replace existing event.
+    // TODO: Make sure insertion position is completely deterministic. Same timestamp falls back to sender, falls back to event ID.
     final insertionIndex =
         _indexOfFirstEventPastTimestamp(event.generatedTimestamp);
     _unstableEvents.insert(insertionIndex, event);
@@ -95,6 +97,7 @@ class Core<State> {
     final cutoffTimestamp = _lastConfirmedServerTimestamp - _unstablePeriod;
     final cutoffIndex = _indexOfFirstEventPastTimestamp(cutoffTimestamp);
     final eventsToBake = _unstableEvents.sublist(0, cutoffIndex);
+    // TODO: Don't bake local events! Remove them.
     _unstableEvents.removeRange(0, cutoffIndex);
     _bakedState = _driver(_bakedState, eventsToBake);
   }

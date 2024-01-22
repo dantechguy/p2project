@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:blitz/src/core/event.dart';
+import 'package:blitz/src/core/events/event.dart';
 
 /// Generates tick [Event]s from a clock and feeds them into the core. The core would likely use them to signal a computation unit.
 ///
@@ -8,7 +8,8 @@ import 'package:blitz/src/core/event.dart';
 ///
 /// Make accept a `currentTime` value, which is the upper bound for ticks to be generated. However given the core can handle future events, you could technically add infinite ticks all at the start and it would still work. But that's not particularly nice.
 /// Make into named arguments?
-Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
+Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod,
+    int Function() generateEventID) {
   // We need a method of generating tick events ensuring none are missed. Worst case would be having events baked in without the tick event, which is irreversible.
   // The timestamp used for baking comes from the events inputted into Core, so we can use two triggers for generating tick events:
   // - A timer, which generates a tick event every tickPeriod.
@@ -29,7 +30,7 @@ Stream<Event> addTickEvents(Stream<Event> eventStream, Duration tickPeriod) {
     Duration tickPeriod,
   ) {
     final newTickEvents = _generateNeededTickEvents(
-        lastTickEventTimestamp, currentTimestamp, tickPeriod);
+        lastTickEventTimestamp, currentTimestamp, tickPeriod, generateEventID);
 
     if (newTickEvents.isNotEmpty) {
       lastTickEventTimestamp = newTickEvents.last.generatedTimestamp;
@@ -63,12 +64,21 @@ List<Event> _generateNeededTickEvents(
   Duration lastTickEventTimestamp,
   Duration currentTimestamp,
   Duration tickPeriod,
+  int Function() generateEventID,
 ) {
   final tickEvents = <Event>[];
   Duration tickTimestamp = currentTimestamp + tickPeriod;
   while (tickTimestamp < lastTickEventTimestamp) {
-    // TODO: Fill in complete [Event] constructor when ready.
-    tickEvents.add(Event(generatedTimestamp: tickTimestamp));
+    tickEvents.add(Event(
+      // TODO: Change? Invalid value.
+      serverReceiptTimestamp: Duration.zero,
+      generatedTimestamp: tickTimestamp,
+      // TODO: Change? This means it's technically from the server.
+      senderID: 0,
+      data: 'tick',
+      eventID: generateEventID(),
+      isServerConfirmed: false,
+    ));
     tickTimestamp += tickPeriod;
   }
   return tickEvents;

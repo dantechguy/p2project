@@ -11,27 +11,4 @@ class Event {
   late final String action;
   // TODO: Change type?
   late final int eventID;
-
-  Event.fromJsonString(String jsonString) {
-    final Map<String, dynamic> json = jsonDecode(jsonString);
-    serverReceiptTimestamp = microsecondsStringToDuration(json['serverReceiptTimestamp']);
-    generatedTimestamp = microsecondsStringToDuration(json['generatedTimestamp']);
-    senderID = int.parse(json['senderID']);
-    eventID = int.parse(json['eventID']);
-    action = json['action'].toString();
-  }
-
-  String toJsonString() {
-    return jsonEncode({
-      'serverReceiptTimestamp': serverReceiptTimestamp.inMicroseconds.toString(),
-      'generatedTimestamp': generatedTimestamp.inMicroseconds.toString(),
-      'senderID': senderID.toString(),
-      'eventID': eventID.toString(),
-      'action': action,
-    }).toString();
-  }
-}
-
-Duration microsecondsStringToDuration(String microsecondsString) {
-  return Duration(microseconds: int.parse(microsecondsString));
 }

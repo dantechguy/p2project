@@ -9,7 +9,6 @@ import 'package:blitzmania/ui/blitz_painter.dart';
 import 'package:blitzmania/ui/inputs.dart';
 import 'package:flutter/material.dart';
 
-
 void main() {
   runApp(const BlitzApp());
 }
@@ -30,21 +29,28 @@ class _BlitzAppState extends State<BlitzApp> {
   @override
   void initState() async {
     super.initState();
-    _networkingClient = NetworkingClient();
-    await _networkingClient.initialise();
+    _networkingClient = NetworkingClient('::1', 4040);
     _timeClient = EventBasedTimeClient();
-    await _timeClient.initialise();
 
     final inputEventStream = _timeClient.interceptTimeSyncEvents(
       addTickEvents(
-        _networkingClient.serverEventStream,
+        convertJsonStringToEvent(
+          _networkingClient.serverStringStream,
+        ),
         const Duration(milliseconds: 50), // Should be 3, and 37.24.
+        // TODO: Add [generateEventID] argument.
       ),
     );
 
     final outputEventFunction = _timeClient.insertTimeSyncEvents(
-      _networkingClient.sendEvent,
+      convertEventToJsonString(
+        _networkingClient.sendStringToServer,
+      ),
     );
+
+    await _networkingClient.initialise();
+    // TODO: Do this and others all at same time with merged future, as they don't depend on each other.
+    await _timeClient.initialise();
 
     _core = Core<RacingState>(
       eventStream: inputEventStream,
@@ -73,9 +79,7 @@ class _BlitzAppState extends State<BlitzApp> {
         body: BlitzInputs(
           onSteer: (double steer) => input.steering = steer,
           onAccelerate: (double accelerate) => input.accelerating = accelerate,
-          child: BlitzPaintWidget(
-              env: _getCurrentState()
-          ),
+          child: BlitzPaintWidget(env: _getCurrentState()),
         ),
       ),
     );
