@@ -178,12 +178,14 @@ Talk about starting point of Flutter, and the high level theory behind the antic
 
 // Any design strategies that looked ahead to the testing stage should be described in order to demonstrate a professional approach was taken
 
-# TODO: going through log to add to implementation. At line 64 atm.
+# TODO: going through log to add to implementation. At line 753 atm.
+
+Nice way to introduce the system would be to show the FreeForm diagram, but start sparce and build it up as you explain each module.
 
 - Overall parts that I developed
   - System architecture
     - All functionality is separated into individual and independent modules.
-    - There is no dependence on library defined types (classes / interfaces). All interfaces are defined by structural typing through Function types.
+    - There is no dependence on library defined types (classes / interfaces). All interfaces are defined by structural typing through Function types. This is to make the system extensible and composable. Give examples for all modules. Rather than passing a, for example, networking module object to the Core, you pass one method for each action the Core might need to do, as any implementation will do, and I don't want external modules to be built to library-defined interfaces and prevent them from being used elsewhere.
     - The developer themselves composes a game engine with only the functionality needed.
     - No part of implementation is forced on developer, and all parts can be individually replaced with custom implementations. 
       - No pre-made assumptions on ticks, if any.
@@ -191,32 +193,133 @@ Talk about starting point of Flutter, and the high level theory behind the antic
     - Client-server communication pipeline is similar to IP stack in that each layer wraps the layer below, and communicates with the same layer on the other side.
     - Environment state
       - Immutable in principle, mutable in practise to make updates more efficient.
-        - Consider how to make immutable but with cheap updates, like OCaml: only nodes from root to changed node are newly generated.
+        - Consider how to make immutable but with cheap updates, like OCaml: only nodes from root to changed node are newly generated. This is done with [.copyWith] methods.
         - Important for future efficient dependency computation.
       - Stores user's last inputs, which are updated when a user input event is received.
       - Needs to store list of users, and keep track of if any are disconnected. Need to consider how and if we'll handle users connecting, disconnecting, and reconnecting.
-    - Early question was where was the system going to be driven from? Would the window call the Core to get the state when it was about to render a new frame? Would the Core push regular updates at ticks to the renderer? Would the core only update when it received an event?
+    - Where was the system going to be driven from? Would the window call the Core to get the state when it was about to render a new frame? Would the Core push regular updates at ticks to the renderer? Would the core only update when it received an event?
       - I decided on having the core only update on events, and implemented ticks as events.
       - This stemmed from that the engine should be independent of screen refresh rate. This meant that the renderer would have to call the core when it wanted the state, rather than the core pushing state to the renderer.
+      - Few options at this point. (1) Core runs when called by renderer. (2) Core runs from in-built timer tick.
+      - I additionally wanted the Core to be independent of whether the game is ticked or not. This added a third option (3) Core runs when receives an event.
+      - Couldn't choose option 1 because of how CustomPaint in Flutter works. The paint function shouldn't do any computation, and you can only signify if you have something new to paint. Also meant that if no rendering for any reason (lag, background process, etc), large amount of computation is then done on first render again.
+      - Combined options 2 and 3 into one, by making ticks an event just the same as any other player input.
+      - In a ticked game, user input events update the inputs in the state but don't compute. Only on a tick event, does the driver use the latest stored inputs and computes.
+      - It couldn't be interally driven (i.e. push updates when state changes) as, with the interpolation modules, there would be infinite updates.
+    - Latency guarantees
+      - Late events are inserted into the history when they _should_ have been received (if zero latency). The latency between two players is how far back in the history an event will be inserted when received from the other.
+    - Determinism
+      - Floating point determinacy https://randomascii.wordpress.com/2013/07/16/floating-point-determinism/. Can solve with SW implemented floats, at the cost of performance.
+    - Unstable period
+      - We bake in events slightly later than unstable period on clients. This is because to guarantee that the right time has passed (we can't rely on local clock), we use the time sent to us from the server. Therefore the latency will add onto the baking delay. We use the 'server received timestamp' in events and record the latest one.
+      - Events generated on client are slightly special. They are marked as 'local' (or 'not server confirmed'), and are inserted into the core unstable event list as normal. They are also sent to the server to be relayed to all other clients.
+      - There is a chance that an event will be rejected by the server with a valid client however, for example lag spike or temporary network outage. All clients must be the same, so every client must receive a copy of the event they sent to the server back before they can bake it in (a confirmation) (can't have the sending client bake in the event and not the other clients).
+      - Local events. They exist only as a temporary substitute for the real event, while the real event is travelling to the server and back. The sub' should never be baked in, only the real event, so the sub' should only exist within the unstable events list, and if it gets to the point where it would be baked in, it should be discarded. The idea is that the real event should make its way back to the client before the sub' would get baked in, and replace the sub event.
+      - [Show proof with server-client packet network diagram]. Result is [latency ≤ offset + latency_cutoff]
+    - Build layers on top to make it more like a normal game engine.
+      - This is really a modular DIY game engine, but for a real project most user's will just want a single authoritative interface to work with.
+      - Hide away tick details: wrap user-passed state object and driver and store buffered user inputs (events). Then on tick event call the user's driver. This would also require a pre-built user input system (unless driver receives a list of events).
+      - Provide pre-built tickless approximator and smoother modules: requires pre-built physics system, to know notion of position and velocity etc. User's driver would then just interact with this physics system with an interface.
+      - User input module: user's driver would receive inputs in a nicer way. You could make this generalisable, but not sure its really worth it. At that point it becomes unnecessary abstraction.
+    - Sync client clocks
+      - Whole system relies on client's clocks being synchronised.
+      - If client's clock is 0.5 seconds behind server's clock, they'll see everything 0.5 seconds behind everyone else.
+      - This is why we do additional clock sync to account for this.
+      - As mentioned before, if multiple re-syncs happen during game, the interpolation between offsets must ensure the client game clock remains monotonic. This would only be needed if client's clock drift was significant, which is unlikely.
+      - Effect of out-of-sync client and server clocks:
+        - An early clock (this client is running ahead of all other clients):
+          - Send all inputs to other clients early. Means that all other clients receive this client's events with low latency.
+          - If the early clock offset is greater than the server-client latency, then all events arriving at the server will have generated timestamp in the future compared to the server clock. If the server discards future events, then all events from that client will be dropped.
+          - The early client will constantly predict all other clients for the offset more time.
+          - Generally a disadvantage to this client.
+        - A late clock (this client is running behind all other clients):
+          - Delays all outputs to other clients.
+          - Receives events from other clients with lower latency / more stability (as essentially a buffer).
+          - All other players will predict this client a constant additional amount, by the offset.
+          - Advantages this player, close to cheating. If it didn't buffer events then it *would* be cheating.
+          - Client server connection
+        - Maximum offset
+          - If a client is early, as long as the server doesn't throw away future events, theoretically any early offset is okay. The game will be unplayable at a certain point for that client, but nothing in the system will break. If the server discards early events, then if `early_offset > client_server_latency`, all events will be discarded and the client cannot play.
+          - If a client is late, then if `late_offset + client_server_latency > latency_cutoff`, all events they send will arrive at the server past the latency cutoff and will be discarded, so they cannot play.
+        - If server discards future events, on a LAN, you may want some leeway in case clock offset is greater than LAN latency.
+      - [Talk about reconnection]
+      - [Talk about initialisation of all modules]
+      - [Game start and state syncing]
+    - Philosophy is that modules are implementation independent to the Core, but not to the programmer.
   - Client core module
+    - Lets you access current state, but not past state. It bakes in past state, which leads to the requirement for a monotonic clock. Users would almost never need it, and it would only be convenient for the Re-Connection Extension.
+    - No baking would also remove the computation-reason for a latency cutoff / unstable period, but you should still keep it for anti-cheating purposes.
+    - Works for both ticked and tickless systems. In ticked, regular tick events signal computation. In tickless, you compute the motion arc for objects, and then until the next collision or user input, you just follow the pre-computed arc, and repeat.
+    - Inputs to the core are from a Stream. Single subscription, as broadcast implies it's okay to miss some events.
+    - Outputs are a function, because the Core doen't push new state but sends it when requested. So it exposes the current state as a getter. 
+    - The core can handle receiving events which occur in the future, it will just buffer them.
   - Server core module
   - Wrapper modules between server and client
+    - Overall design
+      - Currently all modules communicate with [Event] objects. But given their flexibility, it would be very easy to change them to operate on and wrap strings. Bit like IP stack, wrap payload and add header info, then reverse on the other end. For example use ":" as the header separator.
+      - No design is fixed. It currently uses WebSockets and converts strings to Event objects, but could just as easily swap out these modules and use gRPC for example.
+      - Core needs information before it can operate. Consider explaining other parameters too like this?
+        - Own Client ID. Can't generate local events without it.
+        - Unstable period value. Can't bake events in without it.
+        - Time sync. Can't generate or bake events, or render tickless without it.
     - Time sync module
+      - If automatic time sync fails (which it shouldn't), then an alternative when players are together is a manual sync where users tap their screens at the same time.
+      - It looks like it's impossible to accurately synchronise clocks with assymetric latencies, as shown here:
+        - https://cs.stackexchange.com/questions/103/clock-synchronization-in-a-network-with-asymmetric-delays
+        - https://stackoverflow.com/questions/1942877/determine-asymmetric-latencies-in-a-network
+        - https://www.researchgate.net/publication/224183858_Fundamental_Limits_on_Synchronizing_Clocks_Over_Networks
+        - Even NTP can't account for it https://timetoolsltd.com/ntp/ntp-timing-accuracy/
+      - Game timestamps are [Duration] objects which amount of time (microseconds in current version of Dart) elapsed. It makes monotonicity obvious and easy, and an easy to share and sync value.
+      - When clients sync, they first get the UTC timestamp of when the game started according to the server clock, and then calculate the offset between the client and server clocks.
+      - This module *just* exposes the [Duration] value to the Core. Anything else is an implementation detail currently.
+      - The Core uses this module to add the 'generated timestamp' to events, and to know where to cutoff future events in its unstable list.
+      - This module exposes just a local client best estimate of the current server-directed game time. It should not be used for baking, for example.
+      - The definition of mapping from game time [Duration] to real-world time is as follows: add the duration to the timestamp game start time on the server - the real-world mapped time is when that resultant timestamp occured on the server's clock. I don't know how this would work on a P2P system with that extension. I think a lot of the guarantees would be lost and a lot of the system would need to be re-designed.
+      - One option was for all clients to connect to the server as an NTP server, or perhaps an external NTP server, given their NTP-simple accuracy can be on the order of milliseconds. Overkill for this, also I couldn't find a way to force all clients to use the exact same NTP server.
+      - We assume/need that
+        - Clients are capable of monotonically increasing their local time with minor drift (occasional re-syncs can resolve significant drift)
+        - Clients who purposefully mess with their clock (increasing drift / offset) will only affect them in gameplay.
+        - Can't trust the same local client datetime to mean the same real-world time across clients.
+      - Decision between having a completely separate time sync service on the server (unaware of the games) or part of the game engine system. Since syncing means finding the server's game start time for that game, a game reference (id perhaps) must be sent to the time sync module, which means it would have dependended on the game engine anyway, so may as well just have it part of the system and use events.
     - Tick generator
-      - Researched how ticks were generated in other Flutter game engines. They have a simple callback timer which calls the game.update function once per tick. It then sets a flag notifying that the window can be re-rendered.
+      - Researched how ticks were generated in other Flutter game engines. They have a simple callback timer which calls the [game.update] function once per tick. It then sets a flag notifying that the window can be re-rendered.
       - Flame tick implementation was expected but didn't fit into my engine's core's design. 
       - The Core module only reacted and performed computation when it received an event. 
       - Hard-coding a tick timer was the immediate option, but made more sense to have the ticks be an event instead. This fit into the existing design, and means the tick generation is completely customisable and not baked into the game engine.
+      - Tick events are the only event not sent through the server. It would be possible to have the server send the ticks to clients, but this would use up bandwidth and mean that computation would be delayed (from latency). The only requirement for events is that all players receive them all in the correct order, so each client can locally generate their own as long as the generation is fully determinstic and identical on all platforms.
+      - [talk about tick module implementation and guarantees]
+      - You could have it just compute on tick. Just on event, or both tick and event. Or neither and have tickless!. If you want super fast input response rates, compute on both ticks and events. You can't just have events, as otherwise the error from euler physics will be too great. Only issue on computing on events too is that lower end devices may struggle, but in terms of accuracy, it will simply be more accurate. A balance would be running on ticks and events, but with a max event compute rate.
     - UI input event inserter
+      - Local client inputs are sent into its Core as events, just the same as all other clients.
+      - The system must be entirely determinstic. Same events with same state on all clients results in same new state. Makes sense for all clients to have identical internal state then.
+      - Considered if user input should be sent every tick or only when changed. [Open question, see questions.md].
     - Event serialiser
+    - ID sync
+      - Client needs to know its ID to add onto the local input Events it generates. Thats the only difference between its own input and another clients into the Core system.
   - Wrapper modules between Core and renderer
+    - Overall design
+      - Multiple possible options.
+      - Nothing: screen only updates on tick events.
+      - Just unstable runner: constant smooth movement but small jumps on tick events as deviated approximation snaps to true computation.
+      - Just smoother: means screen is always at least 1 tick behind, which can be a lot relative to fast monitors.
+      - Smoother and +1 future tick computed: Smoother would need to be linear, otherwise the inter-tick movement would look uneven and jumpy, and the period would need to be longer than 1 tick period otherwise it'd freeze again before the next tick computation. However then you'd need another interpolator on top to interpolate between when new events arrive and are inserted (smooth out butteryfly effect).
+      - Running two interpolators on top of each other seems inefficient, and may result in quadratic smoothing? Is cleaner to just have a simple tickless approximator with a larger smoother on top.
+      - This linear / nested / wrapped structure is intentional. But I never wrap a module completely, just the input and outputs. This is because some modules only modify inputs or outputs.
     - Unstable runner
     - Tickless approximator
+      - Issue was, in a ticked system, rendering would lead to screen updates only on tick boundaries. If tickrate is 20Hz, then thats the screen refresh rate too.
+      - Needed a way to extrapolate state for any time interval, outside of tick intervals.
+      - This module does just that.
+      - Only intended to run for short periods of time.
     - Smoother / interpolator
+      - For both ticked and tickless engines, eases between sudden state changes when event is inserted into history (mini butteryfly effect), and between hard tick boundaries on ticked systems (but less so as this is handled by tickless approximator).
   - Networking modules
   - Rendering engine
   - Game driver
     - Stores some values as doubles, which don't always have determinstic results on all platforms. Would need to convert to a det' alternative.
+  - Blitz library
+    - Intended to store all re-usable code. The actual game should be implementing and defining very little itself, but mainly just be composing together the various game engine parts.
+    - Library files ordered so the server and client versions of the same module are together, for developer purposes, as the only dependants and dependees are each other.
 
 == Anticheat System Theory
 ? Have this be its own section?

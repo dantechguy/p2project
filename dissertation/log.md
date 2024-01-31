@@ -771,3 +771,38 @@ Users joining and leaving should be treated just as another event. Perhaps you c
 Assume no authentication module, so clients can always join. When a client joins they're added to the user list in the room, and receive all events from that point onwards. All clients (incl. new one) then receive a 'new client X just joined' event. Consider how 'save state on server' module would work and send this state to the client.
 |
 Should we allow clients to disconnect and re-connect and keep same session? This could be added as a layer on top. When client connects again, they can send their previous ID (with some session token or smth), and the server can then send a 'change user ID' event to all clients. On disconnect it means user isn't removed from list in env state, but just potentially marked as disconnected, and on 'change user id' its updated to new user ID, and then client connected event sent? Something like that.
+
+# 2024/1/25
+An idea for how Re-Connection module could work. Re-Connection is really several modules
+- Client initialising local state from server (+all events since)
+- Server checking that all clients have same state (clients upload hashes)
+- Clients uploading true state to server at regular intervals (server can change which client uploads, and checks state against hash)
+|
+Then to implement:
+- Separate module requests, receives, and deserialises state on initialisation. Then passes that as an argument to client Core.
+- Core must be able to retrieve state from a specific timestamp in the past [???]
+- Module to receive state or hash upload requests and send them.
+
+How can the client get/have/retrieve the state from any timestamp? The server should be able to request it based on any metric (time, events sent, tick events sent, etc).
+|
+  Client could have access to whole state history, storing snapshots of state and all events, so you can simulate forward from the nearest snapshot to any time. Bad idea because doesn't scale infinitely - clients will run out of memory, and it's kind of unnecessary
+  |
+  Only thing that's reasonable then is that the server sends the timestamps it needs uploaded in advance. The Core could expose a minimal interface where you can 'subscribe' to a future timestamp's state, as a Future resolving with the value once that value has been baked and confirmed.
+|
+Issue then is what if no events are sent, and so no states are ever confirmed and baked? The server could send an event with the correct timestamp purely for that purpose then. It sends one event with the requested timestamp in advance, and another event once that timestamp has passed so the client knows when to send the state.
+
+# 2024/1/28
+Currently formalising different types of events. In my code I've separated out different event uses into separate classes so I can have type safety, rather than just making all fields nullable. But now current question or issue is how to formalise/generalise the tick events. Currently I just have local vs server events coming into the core. We need local events to reduce the impact of latency, so it's fine having it as a separate class, as that's a design decision as part of the Core.
+|
+I guess I'm just hesitant to add another inherent complexity to Event system for the client Core, before making sure that it's fully applicable in all situations and a useful addition.
+|
+The purpose of the local-server events (events which are guaranteed to be on all clients, but not relayed through server), is that they take up unnecessary bandwidth when their generation is determinstic, and that you given their generation is determinstic can be done with no server-latency, which may be a requirement.
+|
+Can we generalise these requirements? Perhaps we can also generalise the system within which you create these types of events? Events which are baked in, but not sent through the server?
+|
+
+# 2024/1/29
+Just moved over all events to separated ones, and updated time sync to use [EventInterceptor].
+|
+Now fixed tick generator, to use nice stream constructing methods over a streamcontroller.
+|
