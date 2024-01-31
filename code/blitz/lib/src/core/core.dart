@@ -1,5 +1,7 @@
+import 'dart:async';
 
-import 'package:blitz/src/core/events/event.dart';
+import 'events/client_in.dart';
+import 'events/client_out.dart';
 
 /// The inner-most core module of anticheat.
 ///
@@ -16,13 +18,12 @@ import 'package:blitz/src/core/events/event.dart';
 ///
 class Core<State> {
   Core({
-    required Stream<Event> eventStream,
+    required Stream<EventClientIn> eventStream,
     required State initialState,
-    required State Function(State, List<Event>) driver,
+    required State Function(State, List<EventClientIn>) driver,
     required Duration unstablePeriod,
     required Duration Function() getCurrentEstimatedTime,
-    required void Function(Event) sendEventToServer,
-
+    required void Function(EventClientOut) sendEventToServer,
   })  : _bakedState = initialState,
         _driver = driver,
         _unstablePeriod = unstablePeriod,
@@ -31,14 +32,14 @@ class Core<State> {
     _listenToEventStream(eventStream);
   }
 
-  void _listenToEventStream(Stream<Event> eventStream) {
-    eventStream.forEach(addEvent);
+  void _listenToEventStream(Stream<EventClientIn> eventStream) {
+    eventStream.forEach(_addEvent);
     // TODO: Add handling when finished and errors.
     // TODO: On finish presumably means the game is over? Depends on what scope the Core should have within the wider game logic. Obviously the developer can write whatever logic they want within the driver, but is there an obvious choice?
     // TODO: On error means that a network error may have occurred? Depends on what we define, and what's pre-defined within the Stream spec. If a network error occurred we need the Re-Connection extension to kick in.
   }
 
-  final void Function(Event) _sendEventToServer;
+  final void Function(EventClientOut) _sendEventToServer;
 
   /// The latency cutoff.
   final Duration _unstablePeriod;
@@ -46,8 +47,11 @@ class Core<State> {
   // TODO: Initialise with starting state.
   State _bakedState;
 
-  // Can contain events with a timestamp past the current timetamp: schedule future events.
-  List<Event> _unstableEvents = [];
+  // Can contain future events (timestamp past the present).
+  // Ordered by timestamp.
+  // Contains both local and server events.
+  // May contain events which can be baked in.
+  List<EventClientIn> _unstableEvents = [];
 
   // TODO: consider changing datatype
   /// Each event received from the server includes the server timestamp when it was received.
@@ -57,56 +61,77 @@ class Core<State> {
 
   // TODO: Keep allowing to change? Or make immutable? I think immutable is best. Any dynamic change of behaviour can be built-in (?).
   // TODO: Make a driver typedef
-  final State Function(State, List<Event>) _driver;
+  final State Function(State, List<EventClientIn>) _driver;
 
   // This is our local clients best estimate of what the current time is.
   final Duration Function() _getCurrentEstimatedTime;
 
+  // Ordered by timestamp.
+  List<(Duration, Completer<State>)> _futureStateRequests = [];
+
   // TODO: Turn private, and have the parameter stream be the only input.
   // Adds a LOCAL event to the system. This means it will be sent to the server, and marked as local, meaning it'll be removed if no server confirmation is received.
-  void addEvent(Event event) {
-    // Current implementation bakes new state as soon as possible (an event exceeds the latency cutoff).
-    // When should you check for this? When adding a new event?
+  void _addEvent(EventClientIn event) {
+    // Insert event into [_unstableEvents], by [generatedTimestamp], then [senderID], then [eventID].
+    // Replace existing event if same IDs (used when server confirming local event).
+    // Update [_lastConfirmedServerTimestamp] if [event] is the latest event.
+    // Run [_bakeEventsPastLatencyCutoff].
 
-    // TODO: Add [event] in the correct position in [_unstableEvents], based on its timestamp.
-    // TODO: update [_lastConfirmedServerTimestamp] if [event] is the latest event.
-    // TODO: run [_bakeEventsPastLatencyCutoff].
-    // TODO: If same event ID and sender ID, replace existing event.
-    // TODO: Make sure insertion position is completely deterministic. Same timestamp falls back to sender, falls back to event ID.
-    final insertionIndex =
-        _indexOfFirstEventPastTimestamp(event.generatedTimestamp);
-    _unstableEvents.insert(insertionIndex, event);
-    if (event.serverReceiptTimestamp > _lastConfirmedServerTimestamp) {
+    final (index, shouldReplaceEvent) =
+        _indexToInsertEventInUnstableList(event);
+    if (shouldReplaceEvent) {
+      _unstableEvents[index] = event;
+    } else {
+      _unstableEvents.insert(index, event);
+    }
+
+    if (event is EventClientInFromServer &&
+        event.serverReceiptTimestamp > _lastConfirmedServerTimestamp) {
       _lastConfirmedServerTimestamp = event.serverReceiptTimestamp;
     }
+
     _bakeEventsPastLatencyCutoff();
   }
 
   void _bakeEventsPastLatencyCutoff() {
-    // Needs to be fast.
-    // How do we efficiently find the first event which is past the latency cutoff?
-    // If this is called really often, how can we re-use computation to make this efficient?
-    // We know that the last time this was called, all events before the border are now gone.
-    //   We could also find out the time since this last happened. So we would have the amount of time
-    //   passed for all of the current events to added to the list.
-    // We could approximate the index of the border element if we had an estimated rate of events arriving.
-    //   I guess the best thing we can do is a binary search here if we want to keep it simple and performant
-    //   over a large variety of event arrival rates.
+    // Separate events which have passed the latency cutoff.
+    // Remove local events (they shouldn't be baked, but replaced with a server-confirmed version).
+    // Complete future state requests when we bake state for their timestamps.
 
-    // TODO: In a peer-to-peer system, there is no last confirmed server timestamp. How do you know when to bake, and when you've received all events past a certain timestamp? If using TCP, you can keep a lastConfirmedClientTimestamp for each client, and use that to know when you can bake events from them past a certain timestamp. This doesn't work if using UDP. Also, what if a client misbehaves or stops sending events, then no events can be baked. You need some way to enforce the latency cutoff.
-    final cutoffTimestamp = _lastConfirmedServerTimestamp - _unstablePeriod;
-    final cutoffIndex = _indexOfFirstEventPastTimestamp(cutoffTimestamp);
-    final eventsToBake = _unstableEvents.sublist(0, cutoffIndex);
-    // TODO: Don't bake local events! Remove them.
-    _unstableEvents.removeRange(0, cutoffIndex);
-    _bakedState = _driver(_bakedState, eventsToBake);
+    final stableTimestampCutoff =
+        _lastConfirmedServerTimestamp - _unstablePeriod;
+    for (final event in _unstableEvents) {
+      if (event.generatedTimestamp > stableTimestampCutoff) {
+        break;
+      }
+      if (event is EventClientInFromLocal) {
+        continue;
+      }
+      _completeFutureStateRequestsBefore(event.generatedTimestamp);
+      // Make more efficient by using internal non-copy driver (somehow).
+      _bakedState = _driver(_bakedState, [event]);
+    }
   }
 
-  int _indexOfFirstEventPastTimestamp(Duration timestamp) {
-    // Binary search _unstableEvents for the first event which is past [timestamp] (i.e. is stable).
-    // Returns 0 or length of list if none or all are stable.
+  (int, bool) _indexToInsertEventInUnstableList(EventClientIn event) {
+    int min = 0;
+    int max = _unstableEvents.length;
+    while (min < max) {
+      final mid = min + ((max - min) >> 1);
+      if (_unstableEvents[mid].compareTo(event) < 0) {
+        min = mid + 1;
+      } else {
+        max = mid;
+      }
+    }
+    final shouldReplaceEvent = _unstableEvents.isNotEmpty &&
+        _unstableEvents[min].compareTo(event) == 0;
+    return (min, shouldReplaceEvent);
+  }
 
-    // AI generated code. Looks good.
+  int _indexOfFirstEventAfterTimestamp(Duration timestamp) {
+    // Binary search _unstableEvents for the first event which is after [timestamp] (i.e. is stable).
+    // Returns 0 or length of list if none or all are stable.
     int min = 0;
     int max = _unstableEvents.length;
     while (min < max) {
@@ -120,6 +145,14 @@ class Core<State> {
     return min;
   }
 
+  void _completeFutureStateRequestsBefore(Duration timestamp) {
+    while (_futureStateRequests.isNotEmpty &&
+        timestamp >= _futureStateRequests.first.$1) {
+      final (_, completer) = _futureStateRequests.removeAt(0);
+      completer.complete(_bakedState);
+    }
+  }
+
   // TODO: make a getter?
   State getCurrentState() {
     _bakeEventsPastLatencyCutoff();
@@ -127,16 +160,23 @@ class Core<State> {
   }
 
   // TODO: make a getter?
-  // TODO: return a copy to prevent external modification?
-  // Must remove events past the present. What is its source for the present timestamp?
-  List<Event> getUnstableEvents() {
-    // Removing events before doing a second binary search will make the second search faster.
+  List<EventClientIn> getUnstableEvents() {
+    // Remove stable events by baking.
     _bakeEventsPastLatencyCutoff();
-
-    // TODO: What is the source for the current time?
-    final currentTimestamp = _getCurrentEstimatedTime();
-    final cutoffIndex = _indexOfFirstEventPastTimestamp(currentTimestamp);
-    final unstablePastEvents = _unstableEvents.sublist(0, cutoffIndex);
+    final futureCutoffIndex =
+        _indexOfFirstEventAfterTimestamp(_getCurrentEstimatedTime());
+    final unstablePastEvents = _unstableEvents.sublist(0, futureCutoffIndex);
     return unstablePastEvents;
+  }
+
+  // Returns when state of a certain timestamp is baked.
+  Future<State> getStateAt(Duration futureTimestamp) async {
+    if (futureTimestamp < _lastConfirmedServerTimestamp) {
+      throw ArgumentError('Cannot get future state from past timestamp');
+    }
+
+    final completer = Completer<State>();
+    _futureStateRequests.add((futureTimestamp, completer));
+    return completer.future;
   }
 }

@@ -1,4 +1,4 @@
-import 'package:blitz/src/core/extensions/str_event_conversion.dart' show convertEventToJsonString, convertJsonStringToEvent;
+import 'package:blitz/src/core/event_serialiser/str_event_conversion.dart' show convertEventToJsonStringForServer, convertJsonStringFromServerToEvent;
 import 'package:test/test.dart';
 
 void main() {

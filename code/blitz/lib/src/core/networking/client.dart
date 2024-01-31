@@ -1,4 +1,3 @@
-import 'package:blitz/src/core/events/event.dart';
 
 // Exposes stream of events received from the server which are inputted into the Core, and a method to send events to the server which the Core calls.
 import 'dart:html';

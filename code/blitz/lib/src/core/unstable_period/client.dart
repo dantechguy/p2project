@@ -1,12 +1,12 @@
 import 'dart:async';
 
+import 'package:blitz/src/core/events/client_in.dart';
 import 'package:blitz/src/core/extensions/event_interceptor.dart';
 
-import '../events/client_in.dart';
 import '../events/client_out.dart';
 
-class ClientIDSyncClient {
-  ClientIDSyncClient({
+class UnstablePeriodSyncClient {
+  UnstablePeriodSyncClient({
     required int Function() generateUniqueEventID,
   }) : _generateUniqueEventID = generateUniqueEventID;
 
@@ -20,15 +20,15 @@ class ClientIDSyncClient {
   Future<void> initialise() async {
     _sendEventToServer(
       EventClientOut(
-        generatedTimestamp: Duration.zero,
-        data: 'get client id',
+        generatedTimestamp: ,
+        data: 'get unstable period',
         eventID: _generateUniqueEventID(),
       ),
     );
 
     try {
       _clientID = await _interceptor.waitUntil(
-          (event) => event.data.startsWith('get client id;'),
+          (event) => event.data.startsWith('get unstable period;'),
           timeout: Duration(seconds: 5),
           mapper: (event) => int.parse(event.data.split(';')[1]));
     } on TimeoutException {

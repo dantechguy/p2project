@@ -1,5 +1,6 @@
 
-import 'package:blitz/src/core/events/event.dart';
+
+import '../events/client_in.dart';
 
 /// Unstable Runner
 ///
@@ -13,9 +14,9 @@ import 'package:blitz/src/core/events/event.dart';
 ///
 
 State Function() runUnstableEvents<State>({
-  required State Function(State, List<Event>) driver,
+  required State Function(State, List<EventClientIn>) driver,
   required State Function() getStableState,
-  required List<Event> Function() getUnstableEvents,
+  required List<EventClientIn> Function() getUnstableEvents,
 }) {
   return () => driver(
     getStableState(),

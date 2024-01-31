@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-
-import 'package:blitz/src/core/events/event.dart';
+import '../events/client_in.dart';
+import '../events/client_out.dart';
+import '../extensions/event_interceptor.dart';
 
 /// A module which exposes the current game-time to the Core (and rest of system).
 ///
@@ -32,15 +32,9 @@ class EventBasedTimeClient {
 
   final Duration _syncTimeout;
 
-  final Stopwatch _syncOffsetRTTStopwatch = Stopwatch();
-  late DateTime _syncOffsetStartTime;
-  late Completer<String> _syncOffsetResponseCompleter;
-  Completer<void> _syncOffsetCompleter = Completer()..complete();
+  late final void Function(EventClientOut) _sendEventToServer;
 
-  late Completer<String> _syncGameStartTimeResponseCompleter;
-  Completer<void> _syncGameStartTimeCompleter = Completer()..complete();
-
-  late final void Function(Event) _sendEventToServer;
+  final EventInterceptor<EventClientIn> _interceptor = EventInterceptor();
 
   Future<void> initialise() async {
     // Performs a first time sync.
@@ -64,85 +58,45 @@ class EventBasedTimeClient {
   }
 
   Future<void> _syncGameStartTime() async {
-    // Only one time sync can happen at a time.
-    if (!_syncGameStartTimeCompleter.isCompleted) {
-      return _syncGameStartTimeCompleter.future;
-    }
-    _syncGameStartTimeCompleter = Completer();
+    // TODO: Restrict to only one sync at a time
 
-    // Send event and wait for response
-    _sendEventToServer(Event(
-      serverReceiptTimestamp: Duration.zero,
-      generatedTimestamp: Duration.zero,
-      senderID: _clientID,
+    _sendEventToServer(EventClientOut(
+      generatedTimestamp: ,
       data: 'time sync start time',
       eventID: _generateUniqueEventID(),
-      isServerConfirmed: false,
     ));
-    _syncGameStartTimeResponseCompleter = Completer();
 
-    // Update value on response. Set a timeout.
-    try {
-      final timeString = await _syncGameStartTimeResponseCompleter.future
-          .timeout(_syncTimeout);
-      _gameStartServerTime = DateTime.parse(timeString);
-    } on TimeoutException {
-      _syncGameStartTimeCompleter.complete();
-      rethrow;
-    } on FormatException {
-      _syncGameStartTimeCompleter.complete();
-      rethrow;
-    }
-
-    // Another sync can now start.
-    _syncGameStartTimeCompleter.complete();
+    // Throws TimeoutException or FormatException.
+    _gameStartServerTime = await _interceptor.waitUntil(
+      (event) => event.data.startsWith('time sync start time;'),
+      timeout: _syncTimeout,
+      mapper: (event) => DateTime.parse(event.data.split(';')[1]),
+    );
   }
 
   Future<void> _syncOffsetBetweenLocalAndServerClock() async {
-    // Only one time sync can happen at a time.
-    if (!_syncOffsetCompleter.isCompleted) {
-      return _syncOffsetCompleter.future;
-    }
-    _syncOffsetCompleter = Completer();
+    // TODO: Restrict to only one sync at a time
 
-    // Send event and start timer.
-    _sendEventToServer(Event(
-      serverReceiptTimestamp: Duration.zero,
-      generatedTimestamp: Duration.zero,
-      senderID: _clientID,
+    _sendEventToServer(EventClientOut(
+      generatedTimestamp: ,
       data: 'time sync clock offset',
       eventID: _generateUniqueEventID(),
-      isServerConfirmed: false,
     ));
-    _syncOffsetRTTStopwatch.reset();
-    _syncOffsetRTTStopwatch.start();
-    _syncOffsetResponseCompleter = Completer();
-    _syncOffsetStartTime = DateTime.now().toUtc();
 
-    // Await on future and assign to property. Set a timeout.
-    final DateTime serverReceipt;
-    try {
-      final timeString = await _syncOffsetResponseCompleter.future.timeout(_syncTimeout);
-      serverReceipt = DateTime.parse(timeString);
-    } on TimeoutException {
-      _syncOffsetCompleter.complete();
-      rethrow;
-    } on FormatException {
-      _syncOffsetCompleter.complete();
-      rethrow;
-    }
+    final rttStopwatch = Stopwatch()..start();
+    final DateTime startTime = DateTime.now().toUtc();
 
-    _syncOffsetRTTStopwatch.stop();
+    // Throws TimeoutException or FormatException.
+    final serverReceiptTime = await _interceptor.waitUntil(
+          (event) => event.data.startsWith('time sync clock offset;'),
+      timeout: _syncTimeout,
+      mapper: (event) => DateTime.parse(event.data.split(';')[1]),
+    );
 
-    // Calculate offset.
-    final Duration halfRTT = _syncOffsetRTTStopwatch.elapsed ~/ 2;
-    final DateTime serverTimeOnSend = serverReceipt.subtract(halfRTT);
-    // TODO: Correct sign?
-    _offsetLocalClockToServerClock =
-        serverTimeOnSend.difference(_syncOffsetStartTime);
-
-    // Another sync can now start.
-    _syncOffsetCompleter.complete();
+    rttStopwatch.stop();
+    final halfRTT = rttStopwatch.elapsed ~/ 2;
+    final DateTime serverTimeWhenRequestSent = serverReceiptTime.subtract(halfRTT);
+    _offsetLocalClockToServerClock = serverTimeWhenRequestSent.difference(startTime);
   }
 
   Duration getCurrentGameTime() {
@@ -155,21 +109,13 @@ class EventBasedTimeClient {
 
   // Insert events into stream, to send to the server
   // Rename to something more understandable without knowing internals
-  void Function(Event) insertTimeSyncEvents(void Function(Event) addEvent) {
+  void Function(EventClientOut) insertEvents(void Function(EventClientOut) addEvent) {
     _sendEventToServer = addEvent;
     return addEvent;
   }
 
   // Intercept and remove events from stream, before they reach the core
-  Stream<Event> interceptTimeSyncEvents(Stream<Event> eventStream) async* {
-    await for (final Event event in eventStream) {
-      if (event.data.startsWith('time sync start time;')) {
-        _syncGameStartTimeResponseCompleter.complete(event.data.split(';')[1]);
-      } else if (event.data.startsWith('time sync clock offset;')) {
-        _syncOffsetResponseCompleter.complete(event.data.split(';')[1]);
-      } else {
-        yield event;
-      }
-    }
+  Stream<EventClientIn> interceptEvents(Stream<EventClientIn> eventStream) {
+    return _interceptor.interceptEvents(eventStream);
   }
 }

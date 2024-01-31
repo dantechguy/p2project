@@ -19,10 +19,11 @@ class NetworkingServer {
   late final Stopwatch _clock;
   // Starts at 1, as the server is 0.
   int _currentMaxID = 1;
+  // Do we need this?
   final Map<int, WebSocketChannel> _channels = {};
 
   // TODO: Change type to [Stream<(int clientID, String message)>].
-  late final Stream<String> _outputStream;
+  late final Stream<(int clientID, String)> _outputStream;
 
   Future<void> initialise() async {
     // It doesn't matter when this is started, as long as it's before any events are sent.
@@ -48,13 +49,14 @@ class NetworkingServer {
     _channels[clientID] = channel;
 
     // TODO: Add error handling with [stream.handleError].
+    // TODO: Add/remove (un)trusted data from Event: replace [serverReceiptTimestamp], [senderID], remove [isServerConfirmed].
     _outputStream = channel.stream.handleOnDone(() {
       print('Client $clientID disconnected.');
       _channels.remove(channel);
-    }).map((event) => event.toString());
+    }).map((event) => (clientID, event.toString()));
   }
 
-  Stream<String> get serverStringStream => _outputStream;
+  Stream<(int, String)> get serverStringStream => _outputStream;
 
   // Review these exposed interfaces.
   void sendStringToAllClients(String message) {

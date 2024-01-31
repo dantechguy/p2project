@@ -1,13 +1,15 @@
+import 'package:blitz/src/core/events/server_in.dart';
+import 'package:blitz/src/core/events/server_out.dart';
 import 'package:blitz/src/core/extensions/event_interceptor.dart';
 
-import '../events/server_in.dart';
-import '../events/server_out.dart';
-
-class ClientIDSyncServer {
-  ClientIDSyncServer({
+class UnstablePeriodSyncServer {
+  UnstablePeriodSyncServer({
+    required Duration unstablePeriod,
     required int Function() generateUniqueEventID,
-  }) : _generateUniqueEventID = generateUniqueEventID;
+  })  : _unstablePeriod = unstablePeriod,
+        _generateUniqueEventID = generateUniqueEventID;
 
+  final Duration _unstablePeriod;
   final int Function() _generateUniqueEventID;
   late final void Function(int, EventServerOut) _sendEventToClient;
   final EventInterceptor<EventServerIn> _interceptor = EventInterceptor();
@@ -23,17 +25,15 @@ class ClientIDSyncServer {
 
     // We know that Event's senderID is set by the server, so can be trusted and sent back directly.
     _interceptor.whenever(
-      (event) => event.data == 'get client id',
+      (event) => event.data == 'get unstable period',
       (event) {
         _sendEventToClient(
             event.senderID,
             EventServerOut(
-              // TODO: Add current time Duration getter.
-              serverReceiptTimestamp: Duration.zero,
-              generatedTimestamp: Duration.zero,
-              // TODO: Make server ID a getter too.
+              serverReceiptTimestamp: ,
+              generatedTimestamp: ,
               senderID: 0,
-              data: 'get client id;${event.senderID}',
+              data: 'get unstable period;$_unstablePeriod',
               eventID: _generateUniqueEventID(),
             ));
       },

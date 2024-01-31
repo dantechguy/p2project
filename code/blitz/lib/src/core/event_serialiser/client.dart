@@ -1,16 +1,18 @@
 import 'dart:convert';
-import 'package:blitz/core.dart';
 
-// Intercepts events sent to the server. Converts them into strings.
-void Function(Event) convertEventToJsonString(
+import '../events/client_in.dart';
+import '../events/client_out.dart';
+
+void Function(EventClientOut) convertEventToJsonStringForServer(
     void Function(String) sendStringToServer) {
-  return (Event event) {
+  return (EventClientOut event) {
     sendStringToServer(_eventToJsonString(event));
   };
 }
 
 // Intercepts events received from the server. Converts them into Events for the Core.
-Stream<Event> convertJsonStringToEvent(Stream<String> stringStream) async* {
+Stream<EventClientInFromServer> convertJsonStringFromServerToEvent(
+    Stream<String> stringStream) async* {
   await for (final String msg in stringStream) {
     try {
       yield _jsonStringToEvent(msg);
@@ -20,7 +22,7 @@ Stream<Event> convertJsonStringToEvent(Stream<String> stringStream) async* {
   }
 }
 
-Event _jsonStringToEvent(String jsonString) {
+EventClientInFromServer _jsonStringToEvent(String jsonString) {
   final Map<String, dynamic> json;
 
   // Throws [FormatException] if invalid.
@@ -32,30 +34,24 @@ Event _jsonStringToEvent(String jsonString) {
     'senderID',
     'eventID',
     'data',
-    'isLocal',
   ]);
 
-  return Event(
+  return EventClientInFromServer(
     serverReceiptTimestamp:
-        microsecondsStringToDuration(json['serverReceiptTimestamp']),
+    microsecondsStringToDuration(json['serverReceiptTimestamp']),
     generatedTimestamp:
-        microsecondsStringToDuration(json['generatedTimestamp']),
+    microsecondsStringToDuration(json['generatedTimestamp']),
     senderID: int.parse(json['senderID']),
     eventID: int.parse(json['eventID']),
     data: json['data'],
-    isServerConfirmed: json['isLocal'] == 'true' ? true : false,
   );
 }
 
-String _eventToJsonString(Event event) {
+String _eventToJsonString(EventClientOut event) {
   return jsonEncode({
-    'serverReceiptTimestamp':
-        event.serverReceiptTimestamp.inMicroseconds.toString(),
     'generatedTimestamp': event.generatedTimestamp.inMicroseconds.toString(),
-    'senderID': event.senderID.toString(),
     'eventID': event.eventID.toString(),
     'data': event.data.toString(),
-    'isLocal': event.isServerConfirmed.toString(),
   }).toString();
 }
 
