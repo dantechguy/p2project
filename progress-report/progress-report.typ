@@ -40,7 +40,7 @@ In the short term I will focus on writing everything that doesn't depend on a co
 - Full design of the system's architecture and implementation details
 - Mostly completed but mostly untested code for the project's core
   - Full design has 19 independent modules
-  - *Client:* 4 modules completed, 4 mostly completed, 2 not started
-  - *Server:* 2 modules completed, 2 mostly completed, 2 not started
-  - *Game Driver:* 1 module completed
-  - *UI and Graphics:* 1 module completed, 1 mostly completed
+  - *Client:* 8 modules completed, 1 mostly completed; none tested
+  - *Server:* 6 modules completed; none tested
+  - *Game Driver:* 1 module completed and tested
+  - *UI and Graphics:* 2 modules completed; 1 tested

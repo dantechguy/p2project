@@ -806,3 +806,104 @@ Just moved over all events to separated ones, and updated time sync to use [Even
 |
 Now fixed tick generator, to use nice stream constructing methods over a streamcontroller.
 |
+
+# 2024/1/31
+Setup intercepted modules should always check that the sender was the server, otherwise other players could maliciously send these packets.
+
+Have updated all non-core event creation (i.e. hijacking of event networking system) to use filler values wherever possible, to highlight the fact that it's not a true value. They no longer generate new unique ID and send proper timestamps, for example.
+
+Made library cleaner, file hierarchy and imports are better.
+
+# 2024/2/1
+UI input system. Create an object. It exposes
+- A widget which you insert into the widget tree (high up), which intercepts inputs
+- An event inserter which you place in the event input stream layers.
+
+When a client connects or disconnects, the server simply sends that information as an event to the clients.
+|
+The networking client exposes connect/disconnect to the ServerCore, and then the ServerCore exposes onClientConnect and onClientDisconnect callbacks to run after it's finished. The Re-Connection module uses this to signal that it sends the latest state to the client. The Re-Connection module must buffer all events to the new client to ensure it can send them all in the right order, so it must operate both just before EventToJson and after.
+
+For an MVP without the Re-Connection module, we won't have clients join and leave. We'll just set the initial state to have the right players and have those players join.
+
+# 2024/2/29
+Comments received from Project Checkers said "Comparison of alternative distributed algorithms may get more credit (with reference to related work) rather than further game development"
+
+# 2024/3/21
+"Time warp", or computing based on each clients' local view. All that's required to support this in the driver is 
+- Every input event to include the latest received event from the server that client has received at the time of input generation.
+- All clients and server store a recent list of input events *in order of receipt*. Clients use this to know what events another client had received at the time of an event generation. Servers use this to check that clients' are reporting latest-event-received-from-server IDs monotonically
+- Servers must check that the latest-event-received IDs are monotonic from each client.
+
+How long do clients and server need to store this list of events sorted by received time? Each client keeps track of the latest-event-received-from-server for each client. The minimum of these is how far back your recent list of events sorted by received time needs to go. There should be guarantees about this from the server, such as that they increase monotonically, and the bounds within which they can exist.
+
+What are the allowed bounds for an event's latest-event-received-from-server field? Causal consistency.
+|
+Will we have to define here a maximum RTT, on top of the already existing maximum client->server latency? (well technically we don't have a maximum c->s latency, the inequality includes clock offset).
+
+How can the generated-timestamp ordered state, and local client states, each be accessed by the driver properly? Maybe the driver is now a function of both states as input arguments: 
+|
+`State driver(State currentState, State function(int clientID, int lastReceivedServerEventID) clientLocalState)`
+|
+Or something like that. We don't want to do unnecessary computation, but we also want them to be instantly available. In the above we're assuming that we'll always want the `currentState`, for example. And the second argument's type is illustrative.
+
+# 2024/3/22
+A player is found cheating and is removed. If another cheat-insider player doesn't acknowledge that the other player has been removed (i.e. continues to simulate them rather than remove them) they should be found out. This is already the case, as the cheat-insider player's state will diverge from the others and be caught at the next hash check.
+
+# 2024/3/24
+How should reconnection work? Is there any way for clients to join back as who they were with minimal disruption? Currently they are assigned a new client ID, which would mean that we allow stateful reconnection (join back without losing state), we'd have to replace all the old clientIDs with the new one.
+|
+Can we have some nice way of letting clients get back their old IDs? Yes, it's easy, as clientIDs are handled entirely by the Networking module and passed to the Server Core from there.
+|
+We must just have some way for the same client to be recognised again, like with a Cookie (or shared preferences). Then either the Networking or Re-Connection module can map back to the previous clientID. We must remember to delete these re-connection entries when a room has been deleted.
+
+General-purpose input system. Devs need to decide exactly what inputs they want to be raised as events.
+
+# 2024/3/29
+I want to change the core event outputs from functions to streams.
+|
+NO. I'm going to change everything from Streams to function calls. It's best to have them both be the same thing. But if I do streams (which would be the 'proper' route), then you'll need a new streamcontroller for each module/wrapper. Which is a huge pain. You need to create a streamcontroller on initialisation, merge it with the incoming one, and then manage lifecycles and close it when needed. A huge pain.
+|
+The only benefits I can see from using streams is:
+- Cleaner types and function signatures
+- More guarantees about delivery (with a single subscription)
+|
+Downsides are:
+- Loads of faff: initialise, merge, and close streamcontrollers
+- Increased faff makes it harder to make new modules and more inaccessible to developers
+|
+I take it back, I'm going to use Streams for everything. Turns out they're not as much faff as I thought. You don't need to close, etc, and I can just put the insertion code inside a StreamInterceptor.
+
+# 2024/3/30
+Turn Core getStableState into a stream? Enables the push based updates (which aren't currently possible), but with continuous screen-refresh-rate based updates too, by switching partway through.
+|
+What about unstableEvents? Create a new copy of list and send down a stream every time?
+|
+These two would be broadcast streams, as they're stateless and contain all information in each new event. Ah, but should they be sent together? As you don't want a race condition where one updates before the other and a partial, incorrect update is processed.
+
+Okay, changed the output to be a stream now.
+
+I now need to re-write the tests using this new nice API. 
+
+Problem. Stream version is not sufficient atm. A new unstableEvents is not pushed when currentTime passes and future events become available. If we want this, we'll need to extend the Time Module API. It now, on top of telling us the current time, would need to be able to complete a future when a certain time is reached. Then, when those times expire, the events can move into the present. The only guarantee is that the time returned by getCurrentTime must be greater than the callback trigger time when the callback is run.
+|
+I think ATM sticking to function requests is easiest. I can update them later, but its really low priority ATM.
+
+In making the Core generalisable to Event data type, it means that none of the wrapper modules can piggy-back on events! As the data type isn't necessarily String anymore. I'm re-working TimeModule now to work outside of Events.
+|
+How is tick_generator going to work now?? It's good that it can't be confused with any events, but we'll need some other method.
+|
+  Could be a special field in the Event class? Bad
+  |
+  Consider how it will be when we encapsulate tick logic. Users will never deal with tick events themselves. So we create a wrapper type, which can represent a tick event, but also can store the user's Data type. We pass this compound type to the engine. When the tick-driver receives this type, if its a tick it computes. If not, it unwraps and passes the inner data to the user-supplied driver.
+  |
+    Okay then, so how do we modify the tick_generator to allow this? Just make the output type of the tick_generator `({bool isTick, Data data})`.
+
+# 2024/3/31
+StreamInterceptor. passThroughMap. The idea behind it was that you could de-wrap a IP-wrapped layer in the networking stack. Then I thought why not just use a regular Stream.map? Because what if you wanted to map inbetween several of these waitUntil or whenevers? But no, you should just use a regular map. Because all these within one StreamInterceptor will all be operating on the same networking layer.
+|
+So, we remove the map functionality from streamInterceptor.
+
+All tests written.
+
+General purpose input system - Line 859..
+|
