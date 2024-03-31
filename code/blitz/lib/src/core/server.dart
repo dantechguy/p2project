@@ -1,33 +1,33 @@
-import 'dart:io';
-import 'package:blitz/src/core/events/server_in.dart';
-import 'package:blitz/src/core/events/server_out.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:async';
+
+import 'package:blitz/server.dart';
 
 // Consider renaming to something more descriptive
-class Server {
-  Server({
-    required Stream<EventServerIn> eventStream,
-    required void Function(EventServerOut event) sendEventToAllClients,
+class ServerCore<Data> {
+  ServerCore({
+    required Stream<EventServerIn<Data>> inEvents,
     required Duration Function() getServerTime,
     required Duration unstablePeriod,
   })  : _getServerTime = getServerTime,
-        _unstablePeriod = unstablePeriod,
-        _sendEventToAllClients = sendEventToAllClients {
-    eventStream.forEach(_onEvent);
+        _unstablePeriod = unstablePeriod
+        {
+    inEvents.forEach(_onEvent);
   }
 
-  final void Function(EventServerOut event) _sendEventToAllClients;
+  final StreamController<EventServerOut<Data>> _eventsToClientsStreamController = StreamController();
   final Duration Function() _getServerTime;
   final Duration _unstablePeriod;
 
-  void _onEvent(EventServerIn event) {
-    // Remove events beyond the unstable period.
-    if (_getServerTime() - event.generatedTimestamp > _unstablePeriod) return;
+  Stream<EventServerOut<Data>> get eventsToClient => _eventsToClientsStreamController.stream;
 
-    _sendEventToAllClients(
+  void _onEvent(EventServerIn<Data> event) {
+    // Remove events beyond the unstable period.
+    final serverReceiptTime = _getServerTime();
+    if (serverReceiptTime - event.generatedTimestamp > _unstablePeriod) return;
+
+    _eventsToClientsStreamController.add(
       EventServerOut(
-        serverReceiptTimestamp: _getServerTime(),
+        serverReceiptTimestamp: serverReceiptTime,
         generatedTimestamp: event.generatedTimestamp,
         data: event.data,
         senderID: event.senderID,
