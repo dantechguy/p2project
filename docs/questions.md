@@ -34,6 +34,12 @@ Could do this to make sure they get a particular shot. Consider the bounds withi
 
 > How can clients reconnect with the same clientID? - Line 855
 
-> What should the [senderID] and [eventID] of tick events be?
+> What should the [senderID] and [eventID] of tick events be? - Line 942
 
-> With a generalisable Event data type, how should tick events be sent? - Line 893
+> With a generalisable Event data type, how should tick events be sent? - Line 893, 932
+
+> How to separate networking/server sendSingleClient vs sendAllClients stream? - Line 958
+
+> Consider switching Stream to to something synchronous to reduce latency - Line 984
+
+> Make supporting late connecting clients part of the Core API, rather than an extension? - Line 971

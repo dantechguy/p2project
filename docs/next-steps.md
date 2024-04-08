@@ -8,29 +8,47 @@
 - [x] Write tests for everything
 - [x] Change core event outputs from functions to streams
 - [x] Change getStableState and getUnstableEvents to a stream. unstable runner then also outputs a stream. Only after the continuous switch, in extrapolator, do we convert to a function request system.
-    - Undone this for now, as it doesn't handle future unstable events becoming stable.
+	- Undone this for now, as it doesn't handle future unstable events becoming stable.
 - [x] Make everything generic to Event type
-- [ ] Write general-purpose input system.
-- [ ] Get server to send connect / disconnected statuses
+- [-] Write general-purpose input system.
+  - Not going to do. Just gonna write one for this project.
+- [x] Get server to send connect / disconnected statuses
+	- [x] Add server-generated events
+		- [x] Update makeEventSI in test helpers
+	- [x] Networking module sends server-generated connection and disconnection events.
+	- [x] Update tests
+- [x] Get server to generate and send a serverID.
+	- Going to do in example of init_data
+- [x] Server sends all buffered events to newly joined players (until Re-Connection done)
+	- [x] Working on stream_split_buffer module
+	- [x] Change networking module to only have single-client stream
+	- [x] Write new connect splitter module
+	- [ ] Write tests for stream_split_buffer, and update tests for networking module
 - [ ] Put together final game
+	- [ ] Fix input_generator requiring client_id. Solution is to not require event generation to add that info, as in line 950.
 - [x] Make generic shared 'info sharer' module which sends all needed info like unstable_period, client_id, server_id
-- [ ] Tick driver wrapper
+- [x] Tick driver wrapper
 - [ ] Interpolation module
 - [ ] Re-connection module
 - [ ] Shared computation module
-- [ ] 'ticked driver' which buffers inputs and hides tick handling.
 - [ ] Look into "time warp" - computing based on each clients' local view.
-    - With a client-server, TCP connection, all events are *received* at the same time.
-    - Each client needs to keep track of the inputs they received, *in the order they received them*, for some period N seconds into the past at any given time.
-    - Every generated client input event also stores the ID of the latest received event from the server (event ID = client ID + event ID).
-    - In a clients' driver, when executing a particular player, it now has two possible views it can consider. One is the simple generated-timestamp order, the other is that player's local view at that time.
-    - The engines can use this however they like. One example would be in an FPS: event generation time is used for everything, except hit-scan shots. When a player triggers a hit-scan shot with an event, the engine looks at the clients' local view to see if the shot would have hit.
-    - ANTICHEAT NOTE: Server must make sure that the stored latest-received-event-from-server ID increases monotonically from each player, and is within reasonable bounds (check maths guarantees about latency cutoff).
-- [ ] Ensure that all server checks on are also done on client. They're just done on server to reduce bandwidth load, but if server CPU is overloaded, we can turn this off and lA et clients deal with it. Should throw error.
-    - Event arrives at server too late
-    - Server sends events with non-monotonic serverReceivedTimestamp
+	- With a client-server, TCP connection, all events are *received* at the same time.
+	- Each client needs to keep track of the inputs they received, *in the order they received them*, for some period N seconds into the past at any given time.
+	- Every generated client input event also stores the ID of the latest received event from the server (event ID = client ID + event ID).
+	- In a clients' driver, when executing a particular player, it now has two possible views it can consider. One is the simple generated-timestamp order, the other is that player's local view at that time.
+	- The engines can use this however they like. One example would be in an FPS: event generation time is used for everything, except hit-scan shots. When a player triggers a hit-scan shot with an event, the engine looks at the clients' local view to see if the shot would have hit.
+	- ANTICHEAT NOTE: Server must make sure that the stored latest-received-event-from-server ID increases monotonically from each player, and is within reasonable bounds (check maths guarantees about latency cutoff).
+- [ ] Ensure that all server checks on are also done on client. They're just done on server to reduce bandwidth load, but if server CPU is overloaded, we can turn this off and let clients deal with it. Should throw error.
+	- Event arrives at server too late
+	- Server sends events with non-monotonic serverReceivedTimestamp
 - [ ] Event combiner module, which bundles network packets to save bandwidth (less overhead)
 - [ ] Server sends NACK to removed events rather than ignoring
 - [ ] Change getCurrentState and currentUnstableEvents back to Streams. Remember to deal with future events becoming present. Either have a timer callback, or maybe disallow future events.
-- [ ] Clean up imports. Just /client and /server
-- [ ] 
+- [ ] Check functions aren't unnecessarily `async`
+- [ ] Remove redundant info from EventClientInFromLocal - Line 950
+    - [ ] Write tests for new Events PreCore
+- [ ] Move late client connection into Core Server module. Make it part of the API. The whole system should be implementable just by providing implementations for the cores. 
+- [ ] Add deltaTime as input to driver?
+- [ ] Rename 'game time' to 'run time' or something game-agnostic
+- [ ] Get tick_generator to only start generating ticks when game starts
+- [ ] Test stream_inserter etc classes too

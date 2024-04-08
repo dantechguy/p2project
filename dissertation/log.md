@@ -907,3 +907,87 @@ All tests written.
 
 General purpose input system - Line 859..
 |
+I'm not going to write one for this project. I'm just going to write one for the game. It would only be a thin wrapper around the existing input system Flutter provides, so it's a bit of a waste of time. Would be important for the public library though, as most users likely wouldn't want to deal with Events.
+
+# 2024/4/1
+Without the Re-Connection module, when a client joins, the server must simply send them all of the events since the start. 
+
+Okay when about to implement the server-sends-connection-and-disconnection events, I realised I couldn't just send Strings as we've moved to a generic type for events. So then I thought about that I'd need to have another wrapper-layer which directly talks to a layer in the engine.
+|
+What's not ideal about this? We could just be sending these all as String events! Along with the tick event, we're adding loads of layers unnecessarily. There aren't even that many events possible really. A few system ones, and some for inputs.
+|
+The benefit of having them all be strings is that it's much more human readable the data flowing through. Any numbers must be stringified. The downside is that this causes unnecessary overhead. Is there some nice way to have it separated out into layers which are only concerned with themselves? Or should we share the medium?
+|
+I suppose when all modules come together, in a typical game engine construction, the data structure of event-data from all the modules will likely be very similar. You'll have ticks, some server commands (e.g. connect, disconnct), and some inputs.
+|
+Given they'll mostly all be the same, the drawbacks from having data be a string are reduced. The chances of a collision are smaller. The small, consistent set of possible events makes this reasonable. 
+|
+However I believe that the Core should still be generic of event type. It's simply that in my examples and the common modules built around it, they will all use Strings. If the set of possible events grows large or varies a lot, then a more structured approach may be beneficial.
+|
+However! The event should still only be used for things that should be events. Other modules should not highjack the event system. Events should reach the core, and be sent to all players.
+|
+From this, I'm going to change the tick generator back to it's old behaviour of generating ticks as the string 'tick'. Inputs will be Strings, and connections will be Strings.
+
+# 2024/4/2
+I've updated the tick_generator to be generalisable, but the provided implementation operates on strings. You can pass custom functions to generate ticks however you want.
+
+I've fixed all the tests so they actually run. The step 'run the test and let it fail' in TDD is important!
+
+Currently working on Server sends connect and disconnect events. What should the function plumbing look like for this? This is a 100% needed server-official event. It can't be sent from the client. Can it be dealt with completely outside of the server? The networking module could handle it completely. But shouldn't it really travel through the server?
+|
+Each client has a method of adding events to the other players (and server). Should the server have this? My concern is that connections are a key part of the protocol and are absolutely required. Well. I guess now that I think about it. They're not *absolutely* required. A client could receive a new unknown ID and just make a new player, without having received a 'new player connected' event.
+|
+This suggests that the server should have a way to add and send events to the clients, that are made from the server.
+
+Another thought what the senderID and eventID of tick events should be. The only requirements is that they're consistent on all clients. And we know that all LocalShared events will be. So we just have a reserved senderID for all LocalShared events, with a determinstic unique eventID for each event.
+|
+Does this mean we need another eventID generator, which is passed around, specifically for LocalShared events?
+
+Should the clientID only be added for local events once it reaches the Core? This assumes that we can only locally generate events from us. True. We would never want to send an event to the server with a different ID. So while it's technically redundant information to have the clientID present in local events, it makes processing easier if all EventClientIn have a senderID. We just need to make sure to pass it around to all the modules that need it.
+|
+The trade-off is to make generating events easier, by not needing to receive the clientID as an argument to that module. But you'll need access to the stream anyway to submit it (so you'll already be receiving arguments), and the number of input generators is likely smaller than the number of data processing modules. So it minimises effort here.
+|
+The same thought could be applied to eventIDs and generatedTimestamps for clients. Really all they need to send is [data]. Everything else could be added at the client core.
+|
+Is there any reason not to do this? The engine wouldn't need to know the local clientID. The renderer would (to display relevant gameplay). Would this affect modules which may intercept events on the way? I imagine that the lack of timestamp would be the biggest issue?
+|
+It does mean there'll need to be two types of EventClientIn: before reached core, and inside the core. Before core means that local events won't be populated. Inside core means they will be, so the engine can use them safely. This could be done type-safely with an implements and an extends. Then we can overlap the classes easily. The only difference would be the local events.
+|
+This is not important ATM. It can be done after.
+
+What is the networking/server sendToSingleClient stream for? Clear boundaries compared to allClients version? The late connection, should it be a part of the official protocol, and therefore have an official communication stream?
+|
+There are two options for late clients. Either send up-to-date state with Re-Connection module, or send initial state and all events since. Either is fine. So I guess the official minimal API is that the core sends the client the initial state and all events since, and sends new events after
+
+# 2024/4/3
+What's the data-flow of events, when adding a new player. We need to ensure that no events are lost or duplicated. There's two sources of events:
+1. The backup buffer of all events sent so far
+2. Newly arriving events
+|
+This could all be handled with a buffer-group module. It's job is to receive one stream and duplicate events for each client. It also stores every event received so far, and if a new client (i.e. split) is added, it will first send all backlogged events, buffer new events as they're received, until the queue is empty, at which point it will forward events immediately.
+|
+This way it doesn't matter when exactly the new client stream split is added, as newly arrived events will just be buffered and it will receive them all anyway.
+
+I think the reason changing the server core API is so conflicting, with the Re-Connection or late connection stuff, is that ATM the whole system works if you simply build modules which satisfy the exposed API of the core module. It's easy to know what to build, because it's explicitely listed out. Following this, we *should* have ensuring clients can still play if they join late be part of the server core, not a separate module.
+|
+Issues are
+- No time right now to implement it properly.
+- There's no right answer for how to get clients to join late
+  - Can send them all events since start
+  - Can send them last saved state (Re-Connection module)
+- Because there's no right answer, this functionality should be defined by it's API and implemented by an external module. By having it part of the API it means it's a core and required functionality.
+- But then the issue is, given there's no right answer, what should the API be? 
+|
+The API could simply be to provide the client with a state and list of events (potentially empty) to run to get them to the latest state.
+
+# 2024/4/4
+I switched over to Stream than Function because it had nicer typing and pre-made functions. But, the asynchronous nature and long chain of connected Streams increases latency. If this latency is poor, I should switch back to a synchronous version. I can simply make my own version?
+|
+Or, I can just switch to `Stream(sync: true)`. The only requirement is that `add` is only ever called from an asynchronous task, which most of mine are (from network). Should be no problem to do this with most of my modules. A single microtask delay is acceptable.
+
+Started making full game.
+
+Made tick driver wrapper.
+
+# 2024/4/7
+Just thought about what if a client joins late, does the tick engine get up to speed properly? Answer is yes, because of the 'catch up' part of the tick generator module.
