@@ -13,7 +13,7 @@ class BlitzPaintWidget extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       child: CustomPaint(
-        painter: BlitzPainter(env: env),
+        painter: BlitzPainter(state: env),
       ),
     );
   }
@@ -22,18 +22,18 @@ class BlitzPaintWidget extends StatelessWidget {
 
 
 class BlitzPainter extends CustomPainter {
-  const BlitzPainter({required this.env});
+  const BlitzPainter({required this.state});
 
-  final RacingState env;
+  final RacingState state;
 
   @override
   void paint(Canvas canvas, Size size) {
-    render(env, canvas, size);
+    render(state, canvas, size);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return oldDelegate is BlitzPainter && oldDelegate.env == env;
+    return oldDelegate is BlitzPainter && oldDelegate.state != state;
   }
 
 }

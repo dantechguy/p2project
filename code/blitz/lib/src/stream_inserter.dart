@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:async/async.dart';
 
 // TODO: merge into StreamInterceptor?

@@ -1,5 +1,16 @@
 import 'dart:ui';
+
+import 'package:blitzmania/dart_extensions.dart';
 import 'package:vector_math/vector_math.dart';
+
+RacingState getInitialState() {
+  return RacingState(
+    gameTime: Duration.zero,
+    users: [],
+    cars: [],
+    inputs: [],
+  );
+}
 
 /// Representation of the environment at an instant in time.
 ///
@@ -23,6 +34,11 @@ class RacingState {
         cars: cars.map((car) => car.copy()).toList(),
         gameTime: gameTime,
       );
+
+  @override
+  String toString() {
+    return 'state ' + [users, cars, inputs].toPrettyString(indent: '  ');
+  }
 }
 
 // TODO: Consider merging [User] and [UserInput].
@@ -42,6 +58,11 @@ class User {
   bool connected;
 
   User copy() => User(displayName: displayName, id: id, connected: connected);
+
+  @override
+  String toString() {
+    return 'user\n' + 'id: $id\ndisplayName: $displayName\nconnected: $connected'.indent(1);
+  }
 }
 
 // TODO: Just because this is the current model, doesn't mean the physics can't later change.
@@ -68,6 +89,11 @@ class UserInput {
         accelerating: accelerating,
         steering: steering,
       );
+
+  @override
+  String toString() {
+    return 'input\n' + 'id: $userId\naccelerating: $accelerating\nsteering: $steering'.indent(1);
+  }
 }
 
 class Car {
@@ -113,4 +139,9 @@ class Car {
         size: size,
         col: col,
       );
+
+  @override
+  String toString() {
+    return 'car\n' + 'userId: $userId\nposition: $position\nvelocity: $velocity\ndirection: $direction\nmass: $mass\ndragCoefficient: $dragCoefficient\nmaxAcceleration: $maxAcceleration\nmaxSteer: $maxSteer\nsize: $size\ncol: $col'.indent(1);
+  }
 }

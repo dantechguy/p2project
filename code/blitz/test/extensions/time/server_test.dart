@@ -7,6 +7,7 @@ TODO:
 import 'dart:async';
 
 import 'package:blitz/server.dart';
+import 'package:blitz/src/dart_extensions.dart';
 import 'package:test/test.dart';
 
 void main() {

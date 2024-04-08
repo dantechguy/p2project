@@ -26,4 +26,7 @@ class EventServerOut<Data> {
   @override
   int get hashCode => Object.hash(
       serverReceiptTimestamp, generatedTimestamp, data, senderID, eventID);
+
+  String toShortString() =>
+      't${generatedTimestamp.inMilliseconds}-r${serverReceiptTimestamp.inMilliseconds}-s$senderID-e$eventID-d$data';
 }

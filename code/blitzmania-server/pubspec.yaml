@@ -8,7 +8,8 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  # path: ^1.8.0
+  blitz:
+    path: '../blitz'
 
 dev_dependencies:
   lints: ^2.0.0

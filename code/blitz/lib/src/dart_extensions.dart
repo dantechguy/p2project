@@ -51,13 +51,14 @@ extension ListExtension<T> on List<T> {
     }
     return res;
   }
+
+  bool hasIndex(int n) => 0 <= n && n < length;
 }
 
 extension StringExtension on String {
-  List<String> splitFirst(Pattern pattern) {
+  String splitAfterFirst(Pattern pattern) {
     final pieces = split(pattern);
-    if (pieces.length <= 1) return pieces;
-    return [pieces[0]] + [pieces.skip(1).join('')];
+    return pieces.skip(1).join(':');
   }
 }
 
@@ -69,6 +70,12 @@ extension StreamExtension<T> on Stream<T> {
     onDone();
   }
 
+  Stream<T> printAll([String Function(T)? map]) async* {
+    await for (final element in this) {
+      print(map?.call(element) ?? element);
+      yield element;
+    }
+  }
 }
 
 extension StreamControllerExtension<T> on StreamController<T> {

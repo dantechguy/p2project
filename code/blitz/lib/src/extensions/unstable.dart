@@ -20,9 +20,9 @@ import 'package:blitz/client.dart';
 // }
 
 State Function() runUnstableEvents<State, Data>({
-  required State Function(State, List<EventClientIn<Data>>) driver,
+  required State Function(State, List<EventClientInInCore<Data>>) driver,
   required State Function() getStableState,
-  required List<EventClientIn<Data>> Function() getUnstableEvents,
+  required List<EventClientInInCore<Data>> Function() getUnstableEvents,
 }) {
   return () => driver(
     getStableState(),

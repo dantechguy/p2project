@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:blitz/server.dart';
+import 'package:blitz/src/dart_extensions.dart';
 
 Stream<String> serialiseEventToJsonStringForClient<Data>(
     Stream<EventServerOut<Data>> eventsToClient) {
@@ -8,18 +9,20 @@ Stream<String> serialiseEventToJsonStringForClient<Data>(
 }
 
 // Intercepts events received from the server. Converts them into Events for the Core.
-Stream<EventServerIn<Data>> deserialiseJsonStringFromClientToEvent<Data>(
+Stream<EventServerInFromClient<Data>> deserialiseJsonStringFromClientToEvent<Data>(
     Stream<(int clientID, String)> stringStream) async* {
   await for (final (id, msg) in stringStream) {
     try {
       yield _clientIDAndJsonStringToEvent(id, msg);
     } on FormatException {
       // If invalid do nothing, 'deleting' the event.
+      print('INVALID EVENT: DELETING');
+      rethrow;
     }
   }
 }
 
-EventServerIn<Data> _clientIDAndJsonStringToEvent<Data>(int senderID, String jsonString) {
+EventServerInFromClient<Data> _clientIDAndJsonStringToEvent<Data>(int senderID, String jsonString) {
   final Map<String, dynamic> json;
 
   // Throws [FormatException] if invalid.
@@ -32,7 +35,7 @@ EventServerIn<Data> _clientIDAndJsonStringToEvent<Data>(int senderID, String jso
   ]);
 
   // TODO: type safe way for json parsing? pass a function?
-  return EventServerIn(
+  return EventServerInFromClient(
     generatedTimestamp:
         Duration(microseconds: int.parse(json['generatedTimestamp'])),
     data: json['data'],
@@ -45,6 +48,7 @@ EventServerIn<Data> _clientIDAndJsonStringToEvent<Data>(int senderID, String jso
 String _eventToJsonString<Data>(EventServerOut<Data> event) {
   return jsonEncode({
     'generatedTimestamp': event.generatedTimestamp.inMicroseconds.toString(),
+    'serverReceiptTimestamp': event.serverReceiptTimestamp.inMicroseconds.toString(),
     'data': event.data.toString(),
     'senderID': event.senderID.toString(),
     'eventID': event.eventID.toString(),

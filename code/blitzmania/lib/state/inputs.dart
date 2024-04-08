@@ -1,23 +1,11 @@
 import 'dart:async';
 
-import 'package:async/async.dart';
 import 'package:blitz/client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class InputHandler {
-  InputHandler({
-    required int clientID,
-    required Duration Function() getCurrentTimeEstimate,
-  })  : _getCurrentTimeEstimate = getCurrentTimeEstimate,
-        _clientID = clientID;
-
-  final int _clientID;
-  final Duration Function() _getCurrentTimeEstimate;
-
-  late final FocusNode _focusNode;
-  late final StreamController<EventClientIn> _inputStreamController;
-  bool _sendEvents = false;
+class InputGenerator {
+  late final StreamInserter<EventClientInPreCore<String>> _streamInserter;
 
   double acceleration = 0;
   double steering = 0;
@@ -27,20 +15,13 @@ class InputHandler {
   bool keyDPressed = false;
 
   void initState() {
-    _focusNode = FocusNode(debugLabel: 'Game inputs');
-    _inputStreamController = StreamController(
-      onListen: () => _sendEvents = true,
-      onCancel: () => _sendEvents = false,
-      onResume: () => _sendEvents = true,
-      onPause: () => _sendEvents = false,
-    );
+    _streamInserter = StreamInserter();
   }
 
   void dispose() {
-    _focusNode.dispose();
   }
 
-  void onKeyPressed(KeyEvent event) {
+  KeyEventResult onKeyPressed(FocusNode node, KeyEvent event) {
     double newAcc;
     double newSteer;
 
@@ -73,40 +54,33 @@ class InputHandler {
 
     if (newAcc != acceleration) {
       acceleration = newAcc;
-      trySendDataToClient('acceleration:$acceleration');
+      sendDataToClient('input:acceleration:$acceleration');
     }
     if (newSteer != steering) {
       steering = newSteer;
-      trySendDataToClient('steering:$steering');
+      sendDataToClient('input:steering:$steering');
     }
+    return KeyEventResult.handled;
   }
 
-  void trySendDataToClient(String data) {
-    if (_sendEvents) {
-      _inputStreamController.add(
-        EventClientInFromLocal(
-          eventID: UniqueIntIDGenerator().generateUniqueID(),
-          data: '',
-          generatedTimestamp: _getCurrentTimeEstimate(),
-          senderID: _clientID,
-        ),
-      );
-    }
+  void sendDataToClient(String data) {
+    _streamInserter.add(
+      EventClientInFromLocalPreCore<String>(
+        data: data,
+      ),
+    );
   }
 
   Widget InputInterceptorWidget({required Widget child}) {
-    return KeyboardListener(
-      focusNode: _focusNode,
+    return Focus(
       autofocus: true,
       onKeyEvent: onKeyPressed,
       child: child,
     );
   }
 
-  Stream<EventClientIn> insertEvents(Stream<EventClientIn> eventStream) {
-    return StreamGroup.merge([
-      _inputStreamController.stream,
-      eventStream,
-    ]);
+  Stream<EventClientInPreCore<String>> toClient(
+      Stream<EventClientInPreCore<String>> stream) {
+    return _streamInserter.insert(stream);
   }
 }

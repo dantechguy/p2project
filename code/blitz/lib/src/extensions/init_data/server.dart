@@ -1,29 +1,30 @@
 import 'dart:convert';
-
 import 'package:blitz/client.dart';
-import 'package:blitz/src/extensions/stream_inserter.dart';
 
 class InitialisationDataServer {
   InitialisationDataServer({
-    required Map<String, dynamic> data,
-  }) : _initialisationData = jsonEncode(data);
+    required Map<String, dynamic> Function(int) getData,
+  }) : _getData = getData;
 
-  final StreamInserter<(int clientID, String data)> _toClientInserter = StreamInserter();
-  final StreamInterceptor<(int, String)> _interceptor = StreamInterceptor();
+  final StreamInserter<(int clientID, String data)> _toClientInserter =
+      StreamInserter();
+  final StreamInterceptor<(int, String)> _toServerInterceptor = StreamInterceptor();
 
-  final String _initialisationData;
+  final Map<String, dynamic> Function(int) _getData;
 
-  Stream<(int, String)> insertData(
-      Stream<(int, String)> dataToClient) {
-    return _toClientInserter.insert(dataToClient);
+  Stream<(int, String)> toClient(Stream<(int, String)> stream) {
+    return _toClientInserter.insert(stream);
   }
 
-  Stream<(int, String)> interceptData(Stream<(int, String)> dataStream) {
-    final interceptedStream = _interceptor.intercept(dataStream);
+  Stream<(int, String)> toServer(Stream<(int, String)> stream) {
+    final interceptedStream = _toServerInterceptor.intercept(stream);
 
-    _interceptor.whenever(
-      (streamData) => streamData.$2 == 'get initialisation data',
-      (streamData) => _toClientInserter.add((streamData.$1, 'get initialisation data:$_initialisationData')),
+    _toServerInterceptor.whenever(
+      (data) => data.$2 == 'get initialisation data',
+      (data) => _toClientInserter.add((
+        data.$1,
+        'get initialisation data:${jsonEncode(_getData(data.$1))}'
+      )),
       passThrough: false,
     );
 

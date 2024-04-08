@@ -1,6 +1,6 @@
 import 'dart:convert';
-
 import 'package:blitz/client.dart';
+import 'package:blitz/src/dart_extensions.dart';
 
 Stream<String> serialiseEventToJsonStringForServer<Data>(
     Stream<EventClientOut<Data>> eventsToServer) {
@@ -13,8 +13,10 @@ Stream<EventClientInFromServer<Data>> deserialiseJsonStringFromServerToEvent<Dat
   await for (final String msg in stringStream) {
     try {
       yield _jsonStringToEvent(msg);
-    } on FormatException {
+    } on FormatException catch (e) {
       // If invalid do nothing, 'deleting' the event.
+      print('REMOVED EVENT: $msg for reason: $e');
+      rethrow;
     }
   }
 }

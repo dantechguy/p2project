@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:blitz/src/dart_extensions.dart';
 
 typedef WheneverEntry<T> = (
@@ -24,6 +23,7 @@ class StreamInterceptor<T> {
     bool Function(T) test, {
     required bool passThrough,
     Duration? timeout,
+        String? name,
   }) {
     final completer = Completer<T>();
     late WaitUntilEntry<T> Function() getEntry;
@@ -33,7 +33,7 @@ class StreamInterceptor<T> {
     } else {
       timer = Timer(timeout, () {
         completer.completeError(TimeoutException(
-            'Timed out waiting for event that matches test condition.'));
+            'Timed out waiting for matching stream element: $name'));
         _removeWaitUntilEntry(getEntry());
       });
     }

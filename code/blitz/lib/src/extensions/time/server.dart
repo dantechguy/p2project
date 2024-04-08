@@ -1,5 +1,4 @@
 import 'package:blitz/server.dart';
-import 'package:blitz/src/extensions/stream_inserter.dart';
 
 class TimeServer {
   TimeServer({

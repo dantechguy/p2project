@@ -62,7 +62,7 @@ void main() {
 
   test('initialise sends "time sync start time" and "time sync clock offset"',
       () async {
-    timeClient.initialise(silentTimeout: true);
+    timeClient.init(silentTimeout: true);
     await Future.delayed(Duration.zero);
     expect(dataSentToServer.toSet(),
         {'time sync start time', 'time sync clock offset'});
@@ -84,7 +84,7 @@ void main() {
         .then((_) => dataToClientStreamCon.add(
             'time sync clock offset:${currentServerTime().toIso8601String()}'));
 
-    await timeClient.initialise();
+    await timeClient.init();
     expect(
       (timeClient.getCurrentGameTime() - currentServerGameTime()).abs(),
       lessThan(Duration(milliseconds: 50)),
@@ -109,7 +109,7 @@ void main() {
         .then((_) => dataToClientStreamCon.add(
             'time sync clock offset:${currentServerTime().toIso8601String()}'));
 
-    await timeClient.initialise();
+    await timeClient.init();
     expect(
       (timeClient.getCurrentGameTime() - currentServerGameTime()).abs(),
       lessThan(Duration(milliseconds: 50)),
@@ -134,7 +134,7 @@ void main() {
         .then((_) => dataToClientStreamCon.add(
             'time sync clock offset:${currentServerTime().toIso8601String()}'));
 
-    await timeClient.initialise();
+    await timeClient.init();
     expect(
       (timeClient.getCurrentGameTime() - currentServerGameTime()).abs(),
       lessThan(Duration(milliseconds: 50)),
@@ -158,7 +158,7 @@ void main() {
         )
         .then((_) => dataToClientStreamCon.add('time sync start time:'));
 
-    expect(() async => await timeClient.initialise(), throwsFormatException);
+    expect(() async => await timeClient.init(), throwsFormatException);
   });
 
   test('Throws FormatException if clock offset response malformed', () {
@@ -169,6 +169,6 @@ void main() {
         )
         .then((_) => dataToClientStreamCon.add('time sync clock offset:'));
 
-    expect(() async => await timeClient.initialise(), throwsFormatException);
+    expect(() async => await timeClient.init(), throwsFormatException);
   });
 }

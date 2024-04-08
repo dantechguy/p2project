@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:blitz/client.dart';
-import 'package:blitz/src/extensions/stream_inserter.dart';
+import 'package:blitz/src/dart_extensions.dart';
 
 class InitialisationDataClient {
   InitialisationDataClient({
@@ -22,7 +22,7 @@ class InitialisationDataClient {
 
   Map<String, dynamic> get data => _data;
 
-  Future<void> initialise() async {
+  Future<void> init() async {
     _toServerInserter.add('get initialisation data');
 
     // TODO: Add auto-prefix system to StreamInterceptor
@@ -32,8 +32,9 @@ class InitialisationDataClient {
         (stringData) => stringData.startsWith('get initialisation data:'),
         timeout: _syncTimeout,
         passThrough: false,
+        name: 'Synchronise Initialisation Data',
       );
-      _data = jsonDecode(stringData.splitFirst(':')[1]);
+      _data = jsonDecode(stringData.splitAfterFirst(':'));
     } on TimeoutException {
       rethrow;
     } on FormatException {
@@ -41,11 +42,11 @@ class InitialisationDataClient {
     }
   }
 
-  Stream<String> insertData(Stream<String> dataToServer) {
+  Stream<String> toServer(Stream<String> dataToServer) {
     return _toServerInserter.insert(dataToServer);
   }
 
-  Stream<String> interceptData(Stream<String> dataToClient) {
+  Stream<String> toClient(Stream<String> dataToClient) {
     return _toClientInterceptor.intercept(dataToClient);
   }
 }

@@ -1,12 +1,18 @@
 import 'dart:async';
 
 import 'package:blitz/client.dart';
+import 'package:blitz/src/dart_extensions.dart';
 
 class CoreException implements Exception {
   final String cause;
 
   const CoreException(this.cause);
+
+  String toString() {
+    return "CoreException('$cause')";
+  }
 }
+
 
 /// The inner-most core module of anticheat.
 ///
@@ -23,31 +29,25 @@ class CoreException implements Exception {
 /// TODO: Make core generic of the event data type too. ATM its forced to String.
 class ClientCore<State, Data> {
   ClientCore({
-    required Stream<EventClientIn<Data>> inEvents,
+    required int clientID,
+    required Stream<EventClientInPreCore<Data>> inEvents,
     required State initialState,
-    required State Function(State, List<EventClientIn<Data>>) driver,
+    required State Function(State, List<EventClientInInCore<Data>>) driver,
     required Duration unstablePeriod,
     required Duration Function() getCurrentEstimatedTime,
-  })  : _bakedState = initialState,
+    required int Function() generateUniqueEventID,
+  })
+      : _clientID = clientID,
+        _inEvents = inEvents,
+        _bakedState = initialState,
         _driver = driver,
         _unstablePeriod = unstablePeriod,
-        _getCurrentEstimatedTime = getCurrentEstimatedTime {
-    _listenToEventStream(inEvents);
-  }
+        _getCurrentEstimatedTime = getCurrentEstimatedTime,
+        _generateUniqueEventID = generateUniqueEventID;
 
-  void _listenToEventStream(Stream<EventClientIn<Data>> eventStream) {
-    eventStream.forEach(_addEvent);
-    // TODO: Add handling when finished and errors.
-    // TODO: On finish presumably means the game is over? Depends on what scope the Core should have within the wider game logic. Obviously the developer can write whatever logic they want within the driver, but is there an obvious choice?
-    // TODO: On error means that a network error may have occurred? Depends on what we define, and what's pre-defined within the Stream spec. If a network error occurred we need the Re-Connection extension to kick in.
-  }
+  final Stream<EventClientInPreCore<Data>> _inEvents;
 
-  final StreamController<EventClientOut<Data>> _eventsToServerStreamController =
-      StreamController();
-
-  // TODO: fix
-  // final StreamController<({State state, List<EventClientIn<Data>> unstableEvents})>
-  //     _outStreamController = StreamController.broadcast();
+  final int _clientID;
 
   /// The latency cutoff.
   final Duration _unstablePeriod;
@@ -58,21 +58,40 @@ class ClientCore<State, Data> {
   // Ordered by timestamp.
   // Contains both local and server events.
   // May contain events which can be baked in.
-  List<EventClientIn<Data>> _unstableEvents = [];
+  List<EventClientInInCore<Data>> _unstableEvents = [];
 
   /// TODO: is this a sensible initial value?
   Duration _lastConfirmedServerTimestamp = Duration.zero;
 
-  final State Function(State, List<EventClientIn<Data>>) _driver;
+  final State Function(State, List<EventClientInInCore<Data>>) _driver;
 
   // This is our local clients best estimate of what the current time is.
   final Duration Function() _getCurrentEstimatedTime;
 
+  final int Function() _generateUniqueEventID;
+
   // Ordered by timestamp.
   List<(Duration, Completer<State>)> _futureStateRequests = [];
 
+  Future<void> init() async {
+    // await _inEvents.forEach(_addEvent);
+    await for (final event in _inEvents) {
+      _addEvent(event);
+    }
+    // TODO: Add handling when finished and errors.
+    // TODO: On finish presumably means the game is over? Depends on what scope the Core should have within the wider game logic. Obviously the developer can write whatever logic they want within the driver, but is there an obvious choice?
+    // TODO: On error means that a network error may have occurred? Depends on what we define, and what's pre-defined within the Stream spec. If a network error occurred we need the Re-Connection extension to kick in.
+  }
+
+  final StreamController<EventClientOut<Data>> _eventsToServerStreamController =
+  StreamController();
+
+  // TODO: fix
+  // final StreamController<({State state, List<EventClientIn<Data>> unstableEvents})>
+  //     _outStreamController = StreamController.broadcast();
+
   // TODO: prevent too old events from being added. throw error
-  void _addEvent(EventClientIn<Data> event) {
+  void _addEvent(EventClientInPreCore<Data> preCoreEvent) {
     // If the event is too old, throw an error.
     // Insert event into [_unstableEvents], by [generatedTimestamp], then [senderID], then [eventID].
     // Replace existing event if same IDs (used when server confirming local event).
@@ -83,44 +102,71 @@ class ClientCore<State, Data> {
     // TODO: refactor two below into a separate 'check event' function
     // TODO: should this update [_lastConfirmedServerTimestamp] ?
     // TODO: Check if one or both of these should just ignore error. Doing server-side checks to be safe.
-    if ((event is EventClientInFromServer<Data> &&
-        event.generatedTimestamp <
-            event.serverReceiptTimestamp - _unstablePeriod)) {
-      throw CoreException(
-          'Event added is too old (past latency cutoff): $event');
+    if ((preCoreEvent is EventClientInFromServer<Data> &&
+        preCoreEvent.generatedTimestamp <
+            preCoreEvent.serverReceiptTimestamp - _unstablePeriod)) {
+      print('ERROR: Event added is too old (past latency cutoff): ${preCoreEvent
+          .toShortString()}');
+      return;
+      // TODO: Add back error throwing. It doesn't propagate and I don't know why
+      // throw CoreException(
+      //     'Event added is too old (past latency cutoff): $preCoreEvent');
     }
 
-    if ((event is EventClientInFromLocal<Data> ||
-            event is EventClientInFromLocalButShared<Data>) &&
-        event.generatedTimestamp <
+
+    if (preCoreEvent is EventClientInFromLocalButShared<Data> &&
+        preCoreEvent.generatedTimestamp <
             _lastConfirmedServerTimestamp - _unstablePeriod) {
-      throw CoreException(
-          'Event added is too old (past latency cutoff): $event');
+      print('ERROR: Event added is too old (past latency cutoff): ${preCoreEvent
+          .toShortString()}');
+      return;
+      // TODO: Add back error throwing. It doesn't propagate and I don't know why
+      // throw CoreException(
+      //     'Event added is too old (past latency cutoff): ${preCoreEvent
+      //         .toShortString()}');
     }
+
+
+    // TODO: Could be that event is not being added here? Maybe there's some unstableList configuration which leads to all events being lost?
+
+    final EventClientInInCore<Data> inCoreEvent = switch (preCoreEvent) {
+      EventClientInFromServer<Data>() => preCoreEvent,
+      EventClientInFromLocalButShared<Data>() => preCoreEvent,
+      EventClientInFromLocalPreCore<Data>() =>
+          EventClientInFromLocalInCore<Data>(
+            generatedTimestamp: _getCurrentEstimatedTime(),
+            data: preCoreEvent.data,
+            senderID: _clientID,
+            eventID: _generateUniqueEventID(),
+          ),
+    };
 
     // TODO: Make it replace just on ID, without Timestamp
     final (index, shouldReplaceEvent) =
-        _indexToInsertEventInUnstableList(event);
+    _indexToInsertEventInUnstableList(inCoreEvent);
     if (shouldReplaceEvent) {
-      _unstableEvents[index] = event;
+      _unstableEvents[index] = inCoreEvent;
     } else {
-      _unstableEvents.insert(index, event);
+      _unstableEvents.insert(index, inCoreEvent);
     }
 
-    if (event is EventClientInFromServer<Data> &&
-        event.serverReceiptTimestamp > _lastConfirmedServerTimestamp) {
-      _lastConfirmedServerTimestamp = event.serverReceiptTimestamp;
+    if (inCoreEvent is EventClientInFromServer<Data> &&
+        inCoreEvent.serverReceiptTimestamp > _lastConfirmedServerTimestamp) {
+      _lastConfirmedServerTimestamp = inCoreEvent.serverReceiptTimestamp;
     }
 
-    if (event is EventClientInFromLocal<Data>) {
-      _eventsToServerStreamController.add(EventClientOut(
-        generatedTimestamp: event.generatedTimestamp,
-        data: event.data,
-        eventID: event.eventID,
+    if (inCoreEvent is EventClientInFromLocalInCore<Data>) {
+      _eventsToServerStreamController.add(EventClientOut<Data>(
+        generatedTimestamp: inCoreEvent.generatedTimestamp,
+        data: inCoreEvent.data,
+        eventID: inCoreEvent.eventID,
       ));
     }
 
     _bakeEventsPastLatencyCutoff();
+
+    // _receivedEvents++;
+    // _completeReceivedEventsRequests();
 
     // TODO: fix
     // TODO: Be exact about when to bake, and when state will change. We want to minimise these unnecessary updates.
@@ -134,12 +180,13 @@ class ClientCore<State, Data> {
 
     final stableTimestampCutoff =
         _lastConfirmedServerTimestamp - _unstablePeriod;
-    for (final event in _unstableEvents) {
+    for (final event in _unstableEvents.copy()) {
       // TODO: check if should be >=
       if (event.generatedTimestamp > stableTimestampCutoff) {
         break;
       }
-      if (event is EventClientInFromLocal<Data>) {
+      _unstableEvents.removeAt(0);
+      if (event is EventClientInFromLocalInCore<Data>) {
         continue;
       }
       _completeFutureStateRequestsUpTo(event.generatedTimestamp);
@@ -148,7 +195,8 @@ class ClientCore<State, Data> {
     }
   }
 
-  (int, bool) _indexToInsertEventInUnstableList(EventClientIn<Data> event) {
+  (int, bool) _indexToInsertEventInUnstableList(
+      EventClientInInCore<Data> event) {
     int min = 0;
     int max = _unstableEvents.length;
     while (min < max) {
@@ -159,7 +207,7 @@ class ClientCore<State, Data> {
         max = mid;
       }
     }
-    final shouldReplaceEvent = _unstableEvents.isNotEmpty &&
+    final shouldReplaceEvent = _unstableEvents.hasIndex(min) &&
         _unstableEvents[min].compareTo(event) == 0;
     return (min, shouldReplaceEvent);
   }
@@ -211,11 +259,11 @@ class ClientCore<State, Data> {
   }
 
   // TODO: Should be >= ?
-  List<EventClientIn<Data>> getUnstableEvents() {
+  List<EventClientInInCore<Data>> getUnstableEvents() {
     // Remove stable events by baking.
     _bakeEventsPastLatencyCutoff();
     final futureCutoffIndex =
-        _indexOfFirstEventAfterTimestamp(_getCurrentEstimatedTime());
+    _indexOfFirstEventAfterTimestamp(_getCurrentEstimatedTime());
     final unstablePastEvents = _unstableEvents.sublist(0, futureCutoffIndex);
     return unstablePastEvents;
   }
@@ -231,4 +279,5 @@ class ClientCore<State, Data> {
     _futureStateRequests.add((futureTimestamp, completer));
     return completer.future;
   }
+
 }

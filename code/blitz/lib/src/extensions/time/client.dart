@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:blitz/client.dart';
-import 'package:blitz/src/extensions/stream_inserter.dart';
+import 'package:blitz/src/dart_extensions.dart';
 
 /// A module which exposes the current game-time to the Core (and rest of system).
 ///
@@ -29,7 +29,7 @@ class TimeClient {
 
   final StreamInterceptor<String> _toClientInterceptor = StreamInterceptor();
 
-  Future<void> initialise({bool silentTimeout = false}) async {
+  Future<void> init({bool silentTimeout = false}) async {
     // TODO: Make this throw just one exception if sync fails.
     try {
       await Future.wait(
@@ -57,9 +57,10 @@ class TimeClient {
       (data) => data.startsWith('time sync start time:'),
       timeout: _syncTimeout,
       passThrough: false,
+      name: 'Synchronise game\'s start time',
     );
     // Throws FormatException
-    _gameStartServerTime = DateTime.parse(responseData.splitFirst(':')[1]);
+    _gameStartServerTime = DateTime.parse(responseData.splitAfterFirst(':'));
   }
 
   // TODO: Change from event to pure string
@@ -77,9 +78,10 @@ class TimeClient {
       (data) => data.startsWith('time sync clock offset:'),
       timeout: _syncTimeout,
       passThrough: false,
+      name: 'Synchronise server-client clock offsets',
     );
     // Throws FormatException
-    final serverReceiptTime = DateTime.parse(responseData.splitFirst(':')[1]);
+    final serverReceiptTime = DateTime.parse(responseData.splitAfterFirst(':'));
 
     rttStopwatch.stop();
     final halfRTT = rttStopwatch.elapsed ~/ 2;
@@ -89,6 +91,7 @@ class TimeClient {
     _localToServerClockOffset = startTime.difference(serverTimeWhenRequestSent);
   }
 
+  // TODO: Am I sure this is monotonic?
   Duration getCurrentGameTime() {
     // TODO: AIGen: check offset is correct sign.
     final localCurrentTime = DateTime.now().toUtc();

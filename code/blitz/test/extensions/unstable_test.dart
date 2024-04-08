@@ -3,45 +3,42 @@ TODO
   - runs unstable events into returned state
  */
 
-import 'dart:async';
-import 'package:collection/collection.dart';
 import 'package:blitz/client.dart';
 import 'package:test/test.dart';
 
 import '../helpers.dart';
 
-
 void main() {
-  late ClientCore client;
-  late StreamController<EventClientIn<String>> streamCon;
-  late Duration currentTime;
+  late String currentState;
+  late List<EventClientInInCore<String>> unstableEvents;
+  String getCurrentState() => currentState;
+  List<EventClientInInCore<String>> getUnstableEvents() => unstableEvents;
+
   setUp(() {
-    streamCon = StreamController();
-    client = ClientCore<int, String>(
-      inEvents: streamCon.stream,
-      initialState: 0,
-      driver: (v, e) => e.map((ev) => int.parse(ev.data)).sum + v,
-      unstablePeriod: Duration(seconds: 1),
-      getCurrentEstimatedTime: () => currentTime,
-    );
-    currentTime = Duration.zero;
+    currentState = '';
+    unstableEvents = [];
   });
-  tearDown(() {
-    streamCon.close();
-  });
+  tearDown(() {});
 
   test('Runs unstable events into returned state', () {
-    final getState = runUnstableEvents(
-      driver: (v, _) => v+1,
-      getStableState: client.getCurrentState,
-      getUnstableEvents: client.getUnstableEvents,
+    final getUnstableState = runUnstableEvents<String, String>(
+      driver: (String state, List<EventClientInInCore<String>> event) => '$state,${event.map((e) => e.data).join(',')}',
+      getStableState: getCurrentState,
+      getUnstableEvents: getUnstableEvents,
     );
-    streamCon.onListen = () {
-      currentTime = Duration(seconds: 1);
-      streamCon.add(makeEventCI('t0-s0-e0-d1-local'));
-      expect(1, getState());
-      streamCon.add(makeEventCI('t0-s0-e0-d2-local'));
-      expect(3, getState());
-    };
+    currentState = 'start';
+    // TODO: how to test timing
+    unstableEvents = [
+      makeEventCI('t0-s0-e0-d1-local'),
+      makeEventCI('t0-s0-e0-d20-local'),
+    ];
+    expect(getUnstableState(), 'start,1,20');
+    unstableEvents = [
+      makeEventCI('t0-s0-e0-d1-local'),
+      makeEventCI('t0-s0-e0-d20-local'),
+      makeEventCI('t0-s0-e0-d300-local'),
+      makeEventCI('t0-s0-e0-d4000-local'),
+    ];
+    expect(getUnstableState(), 'start,1,20,300,4000');
   });
 }
