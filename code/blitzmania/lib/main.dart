@@ -5,6 +5,7 @@ import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/driver.dart';
 import 'package:blitzmania/state/inputs.dart';
 import 'package:blitzmania/state/state.dart';
+import 'package:blitzmania/state/tickless_approx.dart';
 import 'package:blitzmania/ui/blitz_painter.dart';
 import 'package:flutter/material.dart';
 
@@ -29,11 +30,11 @@ class _BlitzAppState extends State<BlitzApp> {
     super.initState();
     _inputGenerator = InputGenerator()..initState();
     setupEngine();
-    Timer.periodic(Duration(milliseconds: 1), (timer) => setState(() {}));
+    Timer.periodic(const Duration(milliseconds: 1), (timer) => setState(() {}));
   }
 
   void setupEngine() async {
-    const tickPeriod = Duration(milliseconds: 50);
+    const tickPeriod = Duration(milliseconds: 200);
     const timeout = Duration(seconds: 10);
 
     final networkingClient = NetworkingClient(address: '127.0.0.1', port: 4040);
@@ -55,13 +56,13 @@ class _BlitzAppState extends State<BlitzApp> {
         ),
       ),
       tickPeriod: tickPeriod,
-    ).printAll((e) => 'IN:  ${e.toShortString()}').listenAndBuffer();
+    ).listenAndBuffer();
 
     final outCoreStreamCon = StreamController<EventClientOut<String>>();
     final outData = initDataClient.toServer(
       timeClient.toServer(
         serialiseEventToJsonStringForServer(
-          outCoreStreamCon.stream.printAll((e) => 'OUT: ${e.toShortString()}'),
+          outCoreStreamCon.stream,
         ),
       ),
     );
@@ -88,11 +89,19 @@ class _BlitzAppState extends State<BlitzApp> {
       generateUniqueEventID: eventIDGen.generateUniqueID,
     );
     outCoreStreamCon.addStream(coreClient.eventsToServer);
-    _getCurrentState = runUnstableEvents(
-      driver: drive,
-      getStableState: coreClient.getCurrentState,
-      getUnstableEvents: coreClient.getUnstableEvents,
+    _getCurrentState = ticklessExtrapolation(
+      getLastState: runUnstableEvents(
+        driver: drive,
+        getStableState: coreClient.getCurrentState,
+        getUnstableEvents: coreClient.getUnstableEvents,
+      ),
+      getCurrentGameTime: timeClient.getCurrentGameTime,
     );
+    // _getCurrentState = runUnstableEvents(
+    //   driver: drive,
+    //   getStableState: coreClient.getCurrentState,
+    //   getUnstableEvents: coreClient.getUnstableEvents,
+    // );
 
     setState(() {
       engineSetup = true;

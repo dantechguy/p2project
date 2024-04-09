@@ -29,10 +29,10 @@ class RacingState {
   List<Car> cars;
 
   RacingState copy() => RacingState(
+        gameTime: gameTime,
         users: users.map((user) => user.copy()).toList(),
         inputs: inputs.map((input) => input.copy()).toList(),
         cars: cars.map((car) => car.copy()).toList(),
-        gameTime: gameTime,
       );
 
   @override
@@ -61,7 +61,8 @@ class User {
 
   @override
   String toString() {
-    return 'user\n' + 'id: $id\ndisplayName: $displayName\nconnected: $connected'.indent(1);
+    return 'user\n' +
+        'id: $id\ndisplayName: $displayName\nconnected: $connected'.indent(1);
   }
 }
 
@@ -92,7 +93,9 @@ class UserInput {
 
   @override
   String toString() {
-    return 'input\n' + 'id: $userId\naccelerating: $accelerating\nsteering: $steering'.indent(1);
+    return 'input\n' +
+        'id: $userId\naccelerating: $accelerating\nsteering: $steering'
+            .indent(1);
   }
 }
 
@@ -103,7 +106,8 @@ class Car {
     required this.velocity,
     required this.direction,
     required this.mass,
-    required this.dragCoefficient,
+    required this.forwardDragCoefficient,
+    required this.sideDragCoefficient,
     required this.maxAcceleration,
     required this.maxSteer,
     required this.size,
@@ -121,7 +125,8 @@ class Car {
   double mass;
 
   /// Not real drag-coefficient. Multiplied by velocity to get drag force.
-  double dragCoefficient;
+  double forwardDragCoefficient;
+  double sideDragCoefficient;
   double maxAcceleration;
   double maxSteer;
   Size size;
@@ -129,11 +134,12 @@ class Car {
 
   Car copy() => Car(
         userId: userId,
-        position: position,
-        velocity: velocity,
+        position: position.copy(),
+        velocity: velocity.copy(),
         direction: direction,
         mass: mass,
-        dragCoefficient: dragCoefficient,
+        forwardDragCoefficient: forwardDragCoefficient,
+        sideDragCoefficient: sideDragCoefficient,
         maxAcceleration: maxAcceleration,
         maxSteer: maxSteer,
         size: size,
@@ -142,6 +148,8 @@ class Car {
 
   @override
   String toString() {
-    return 'car\n' + 'userId: $userId\nposition: $position\nvelocity: $velocity\ndirection: $direction\nmass: $mass\ndragCoefficient: $dragCoefficient\nmaxAcceleration: $maxAcceleration\nmaxSteer: $maxSteer\nsize: $size\ncol: $col'.indent(1);
+    return 'car\n' +
+        'userId: $userId\nposition: $position\nvelocity: $velocity\ndirection: $direction\nmass: $mass\ndragCoefficient: $forwardDragCoefficient\nmaxAcceleration: $maxAcceleration\nmaxSteer: $maxSteer\nsize: $size\ncol: $col'
+            .indent(1);
   }
 }

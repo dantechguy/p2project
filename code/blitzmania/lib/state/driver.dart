@@ -6,8 +6,6 @@ import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/state.dart';
 import 'package:vector_math/vector_math.dart';
 
-const tickPeriodSecs = 0.05;
-
 /// Takes in an [RacingState] (including user inputs) and returns the next tick.
 RacingState drive(RacingState env, List<EventClientInInCore<String>> events) {
   final envCopy = env.copy();
@@ -47,9 +45,10 @@ void clientConnectDisconnect(
         velocity: Vector2.zero(),
         direction: 0,
         mass: 10,
-        dragCoefficient: 10,
-        maxAcceleration: 30,
-        maxSteer: 0.05,
+        forwardDragCoefficient: 0.95,
+        sideDragCoefficient: 0.1,
+        maxAcceleration: 10,
+        maxSteer: 0.1,
         size: const Size(3, 6),
         col: Color(((clientID * 123456) & 0xFFFFFF).toInt()).withOpacity(1.0)));
     state.inputs.add(UserInput(userId: clientID, accelerating: 0, steering: 0));
@@ -80,27 +79,39 @@ void driverInputs(RacingState state, EventClientInInCore<String> event) {
 }
 
 void driverCompute(RacingState state, EventClientInInCore<String> event) {
+  final dt = (event.generatedTimestamp - state.gameTime).inSecondsFractional;
   state.gameTime = event.generatedTimestamp;
 
   for (Car car in state.cars) {
     final userInputs =
         state.inputs.firstWhere((inputObj) => inputObj.userId == car.userId);
 
+    var (vside, vforward) = car.velocity.copy().rotatedCW(-car.direction).toRecord();
+
+    car.direction += userInputs.steering * car.maxSteer * vforward * dt;
+
     final Vector2 driveAcceleration =
-        Vector2(-sin(car.direction), cos(car.direction)) *
+        Vector2(sin(car.direction), cos(car.direction)) *
             car.maxAcceleration *
             userInputs.accelerating;
+
     // f = ma
     // drag is proportional to velocity squared
-    final Vector2 dragAcceleration =
-        -car.velocity * car.velocity.length * car.dragCoefficient / car.mass;
-    final Vector2 netAcceleration = driveAcceleration + dragAcceleration;
+    // final Vector2 dragAcceleration =
+    //     -car.velocity * car.velocity.length * car.dragCoefficient / car.mass;
 
-    final Vector2 velocityDelta = netAcceleration * tickPeriodSecs;
+    final Vector2 netAcceleration = driveAcceleration; // + dragAcceleration;
+
+    final Vector2 velocityDelta = netAcceleration * dt;
     car.velocity += velocityDelta;
 
-    car.position += car.velocity;
-
-    car.direction += -userInputs.steering * car.maxSteer * car.velocity.length;
+    (vside, vforward) = car.velocity.copy().rotatedCW(-car.direction).toRecord();
+    vforward *= pow(car.forwardDragCoefficient, dt).toDouble();
+    vside *= pow(car.sideDragCoefficient, dt).toDouble();
+    car.velocity = Vector2(vside, vforward).rotatedCW(car.direction);
+    if (car.velocity.length > 0.1) {
+      car.position += car.velocity * dt;
+    }
   }
 }
+

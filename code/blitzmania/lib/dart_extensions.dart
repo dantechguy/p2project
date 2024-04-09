@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:vector_math/vector_math.dart';
+
 extension StreamExtension<T> on Stream<T> {
   Stream<T> printAll([String Function(T)? map]) async* {
     await for (final element in this) {
@@ -42,4 +44,31 @@ extension ListExtension<T> on List<T> {
             .join(',\n');
     return '[\n$middle\n]';
   }
+
+  List<T> copy() => toList();
+}
+
+extension DurationExtension on Duration {
+  double get inSecondsFractional => inMicroseconds / 1e6;
+}
+
+extension Vector2Extension on Vector2 {
+  // TODO: test
+  void changeAxis({Matrix2? from, required Matrix2 to}) {
+    if (from != null) {
+      final fromInverted = Matrix2.copy(from)..invert();
+      fromInverted.transform(this);
+    }
+    to.transform(this);
+  }
+
+  Vector2 copy() => Vector2.copy(this);
+
+  (double, double) toRecord() => (x, y);
+
+  Vector2 rotatedCW(double radians) => Matrix2.rotation(-radians).transform(copy());
+}
+
+Matrix2 Matrix2_rows(Vector2 arg0, Vector2 arg1) {
+  return Matrix2.zero()..setRow(0, arg0)..setRow(1, arg1);
 }

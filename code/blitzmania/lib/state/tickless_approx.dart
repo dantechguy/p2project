@@ -1,4 +1,5 @@
 
+import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/state.dart';
 
 /// Lightweight tickless approximator
@@ -19,18 +20,17 @@ import 'package:blitzmania/state/state.dart';
 /// You can specialise a bit by assuming standard euler physics. Write Env specific first,
 ///     then generalise afterwards?
 /// TODO: Either take in current game time, or amount of time to simulate.
-RacingState Function() addTicklessApproximation({
-  required RacingState Function() getPrevState,
+RacingState Function() ticklessExtrapolation({
+  required RacingState Function() getLastState,
   required Duration Function() getCurrentGameTime,
 }) {
   return () {
-    final prevEnv = getPrevState();
-    final env = prevEnv.copy();
-    final Duration currentTime = getCurrentGameTime();
-    Duration timeToSimulate = currentTime - prevEnv.gameTime;
-    double dt = timeToSimulate.inMicroseconds / 1e6;
+    final lastState = getLastState();
+    final state = lastState.copy();
+    Duration timeToSimulate = getCurrentGameTime() - lastState.gameTime;
+    double dt = timeToSimulate.inSecondsFractional;
 
-    for (final car in env.cars) {
+    for (final car in state.cars) {
       // TODO: Include angular velocity.
       // TODO: Don't assume acceleration is zero.
       // We have acceleration and velocity, and want to get displacement.
@@ -38,9 +38,9 @@ RacingState Function() addTicklessApproximation({
 
       // ATM because we assume a=0, it's just s = ut
 
-      car.position = car.velocity * dt;
+      car.position += car.velocity * dt;
     }
 
-    return env;
+    return state;
   };
 }

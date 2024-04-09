@@ -15,7 +15,8 @@ void render(RacingState env, Canvas canvas, Size size) {
   for (Car car in env.cars) {
     canvas.save();
     canvas.translate(car.position.x, car.position.y);
-    canvas.rotate(car.direction);
+    // Matrix rotation is counterclockwise
+    canvas.rotate(-car.direction);
     canvas.drawRect(
       Rect.fromCenter(
           center: Offset.zero, width: car.size.width, height: car.size.height),
