@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:blitz/client.dart';
 import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/driver.dart';
+import 'package:blitzmania/state/extrapolation.dart';
 import 'package:blitzmania/state/inputs.dart';
+import 'package:blitzmania/state/smoother.dart';
 import 'package:blitzmania/state/state.dart';
-import 'package:blitzmania/state/tickless_approx.dart';
 import 'package:blitzmania/ui/blitz_painter.dart';
 import 'package:flutter/material.dart';
 
@@ -34,7 +35,7 @@ class _BlitzAppState extends State<BlitzApp> {
   }
 
   void setupEngine() async {
-    const tickPeriod = Duration(milliseconds: 200);
+    const tickPeriod = Duration(milliseconds: 50);
     const timeout = Duration(seconds: 10);
 
     final networkingClient = NetworkingClient(address: '127.0.0.1', port: 4040);
@@ -89,7 +90,33 @@ class _BlitzAppState extends State<BlitzApp> {
       generateUniqueEventID: eventIDGen.generateUniqueID,
     );
     outCoreStreamCon.addStream(coreClient.eventsToServer);
-    _getCurrentState = ticklessExtrapolation(
+
+    // _getCurrentState = racingSmoother(
+    //   getState: racingTicklessExtrapolation(
+    //     getLastState: runUnstableEvents(
+    //       driver: drive,
+    //       getStableState: coreClient.getCurrentState,
+    //       getUnstableEvents: coreClient.getUnstableEvents,
+    //     ),
+    //     getCurrentGameTime: timeClient.getCurrentGameTime,
+    //   ),
+    //   getTime: timeClient.getCurrentGameTime,
+    //   curve: (x) => x*x*x,
+    //   smoothLength: const Duration(milliseconds: 50),
+    // );
+
+    // _getCurrentState = racingSmoother(
+    //   getState: runUnstableEvents(
+    //     driver: drive,
+    //     getStableState: coreClient.getCurrentState,
+    //     getUnstableEvents: coreClient.getUnstableEvents,
+    //   ),
+    //   getTime: timeClient.getCurrentGameTime,
+    //   curve: (x) => x*x,
+    //   smoothLength: const Duration(milliseconds: 400),
+    // );
+
+    _getCurrentState = racingTicklessExtrapolation(
       getLastState: runUnstableEvents(
         driver: drive,
         getStableState: coreClient.getCurrentState,
@@ -97,6 +124,7 @@ class _BlitzAppState extends State<BlitzApp> {
       ),
       getCurrentGameTime: timeClient.getCurrentGameTime,
     );
+
     // _getCurrentState = runUnstableEvents(
     //   driver: drive,
     //   getStableState: coreClient.getCurrentState,

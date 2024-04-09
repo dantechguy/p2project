@@ -49,7 +49,7 @@ extension ListExtension<T> on List<T> {
 }
 
 extension DurationExtension on Duration {
-  double get inSecondsFractional => inMicroseconds / 1e6;
+  double get inSecondsReal => inMicroseconds / 1e6;
 }
 
 extension Vector2Extension on Vector2 {
@@ -67,6 +67,8 @@ extension Vector2Extension on Vector2 {
   (double, double) toRecord() => (x, y);
 
   Vector2 rotatedCW(double radians) => Matrix2.rotation(-radians).transform(copy());
+
+  List<double> toList() => [x, y];
 }
 
 Matrix2 Matrix2_rows(Vector2 arg0, Vector2 arg1) {

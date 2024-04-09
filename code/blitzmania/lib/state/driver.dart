@@ -45,9 +45,9 @@ void clientConnectDisconnect(
         velocity: Vector2.zero(),
         direction: 0,
         mass: 10,
-        forwardDragCoefficient: 0.95,
+        forwardDragCoefficient: 0.8,
         sideDragCoefficient: 0.1,
-        maxAcceleration: 10,
+        maxAcceleration: 50,
         maxSteer: 0.1,
         size: const Size(3, 6),
         col: Color(((clientID * 123456) & 0xFFFFFF).toInt()).withOpacity(1.0)));
@@ -79,7 +79,7 @@ void driverInputs(RacingState state, EventClientInInCore<String> event) {
 }
 
 void driverCompute(RacingState state, EventClientInInCore<String> event) {
-  final dt = (event.generatedTimestamp - state.gameTime).inSecondsFractional;
+  final dt = (event.generatedTimestamp - state.gameTime).inSecondsReal;
   state.gameTime = event.generatedTimestamp;
 
   for (Car car in state.cars) {

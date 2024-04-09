@@ -1,20 +1,11 @@
+import 'dart:math';
+
+import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/state.dart';
-import 'package:flutter/animation.dart';
+import 'package:collection/collection.dart';
+import 'package:vector_math/vector_math.dart';
 
-/// Interpolator / smoother
-///
-/// Parameters / inputs are:
-/// - An interpolation function.
-/// - A signal to compute and return the current envstate.
-/// - Sequence of envstates over time.
-///
-/// It exposes as output:
-/// - A current envstate which changes smoothly (has no sudden jumps).
-///
-class Smoother {
-  Smoother();
-
-  /* TODO: Generalise:
+/* TODO: Generalise:
       - This could first involve using anonymous functions.
         - One function to gather an iterator of objects to interpolate over.
         - You need to know which object corresponds to which across frames, so
@@ -42,20 +33,92 @@ class Smoother {
    */
 
 
+/// Interpolator / smoother
+///
+/// Parameters / inputs are:
+/// - An interpolation function.
+/// - A signal to compute and return the current envstate.
+/// - Sequence of envstates over time.
+///
+/// It exposes as output:
+/// - A current envstate which changes smoothly (has no sudden jumps).
+///
 
-  // Internal store of previous Env's. This is interpolation approach specific.
-  // Here we have a 'cum' env, for an exponential smoothing.
-  late RacingState prevEnv;
+RacingState Function() racingSmoother({
+  required double Function(double) curve,
+  required Duration smoothLength,
+  required RacingState Function() getState,
+  required Duration Function() getTime,
+}) {
+  final List<(Duration, RacingState)> pastStates = [];
 
-  RacingState getCurrentState(RacingState unstableEnv) {
-    // For all values, take 0.5 of [prevEnv] and 0.5 of [unstableEnv].
-    // Then update [prevEnv] to the result.
-
-    final env = unstableEnv.copy();
-
-    for (final car in env.cars) {
-      // car.position = prevEnv.
+  void removeOldStates(Duration cutoffTime) {
+    while (pastStates.isNotEmpty && pastStates.first.$1 < cutoffTime) {
+      pastStates.removeAt(0);
     }
-    return env;
   }
+
+  List<(double, RacingState)> getWeightedPastStates(Duration currentTime) {
+    final cutoffTime = currentTime = smoothLength;
+    return pastStates.map((rec) {
+      final (time, state) = rec;
+      final weighting = (time - cutoffTime).inSecondsReal /
+          smoothLength.inSecondsReal;
+      return (weighting, state);
+    }).where((rec) => rec.$1 != 0).toList();
+  }
+
+  return () {
+    final time = getTime();
+    final state = getState().copy();
+    pastStates.add((time, state.copy()));
+    if (pastStates.length == 1) {
+      return pastStates.first.$2;
+    }
+    removeOldStates(time - smoothLength);
+    state.gameTime = time;
+    final weightedStates = getWeightedPastStates(time);
+    for (final car in state.cars) {
+      final weightedCars = weightedStates.expand<(double, Car)>((r) {
+        final olderCar = r.$2.cars.firstWhereOrNull((otherCar) =>
+        otherCar.userId == car.userId);
+        return olderCar == null ? [] : [(r.$1, olderCar)];
+      });
+      car.position = weightedMeanLinearVector2(
+          weightedCars.map((r) => (r.$1, r.$2.position)));
+      car.direction = weightedMeanCircularDouble(
+          weightedCars.map((r) => (r.$1, r.$2.direction))) ?? car.direction;
+    }
+    return state;
+  };
+}
+
+double? weightedMeanCircularDouble(Iterable<(double, double)> weightAndValue) {
+  // convert to unit vectors in that direction
+  final weightedUnitVectors = weightAndValue.map((r) =>
+  (r.$1, Vector2(sin(r.$2), cos(r.$2))));
+  // take mean using below vector2
+  final meanVector = weightedMeanLinearVector2(weightedUnitVectors);
+  // return angle of mean unit vector
+  if (meanVector.length == 0) {
+    return null;
+  } else {
+    return -Vector2(0, 1).angleToSigned(meanVector);
+  }
+}
+
+Vector2 weightedMeanLinearVector2(Iterable<(double, Vector2)> weightAndValue) {
+  return Vector2(
+    weightedMeanLinearDouble(weightAndValue.map((r) => (r.$1, r.$2.x))),
+    weightedMeanLinearDouble(weightAndValue.map((r) => (r.$1, r.$2.y))),
+  );
+}
+
+double weightedMeanLinearDouble(Iterable<(double, double)> weightAndValue) {
+  final totalWeight = weightAndValue
+      .map((rec) => rec.$1)
+      .sum;
+  return weightAndValue
+      .map((r) => r.$2 * (r.$1 / totalWeight))
+      .sum;
 }

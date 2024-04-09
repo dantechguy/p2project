@@ -1,4 +1,3 @@
-
 import 'package:blitzmania/dart_extensions.dart';
 import 'package:blitzmania/state/state.dart';
 
@@ -20,7 +19,7 @@ import 'package:blitzmania/state/state.dart';
 /// You can specialise a bit by assuming standard euler physics. Write Env specific first,
 ///     then generalise afterwards?
 /// TODO: Either take in current game time, or amount of time to simulate.
-RacingState Function() ticklessExtrapolation({
+RacingState Function() racingTicklessExtrapolation({
   required RacingState Function() getLastState,
   required Duration Function() getCurrentGameTime,
 }) {
@@ -28,7 +27,7 @@ RacingState Function() ticklessExtrapolation({
     final lastState = getLastState();
     final state = lastState.copy();
     Duration timeToSimulate = getCurrentGameTime() - lastState.gameTime;
-    double dt = timeToSimulate.inSecondsFractional;
+    double dt = timeToSimulate.inSecondsReal;
 
     for (final car in state.cars) {
       // TODO: Include angular velocity.
@@ -37,6 +36,12 @@ RacingState Function() ticklessExtrapolation({
       // s = ut + 1/2 at^2
 
       // ATM because we assume a=0, it's just s = ut
+
+      final userInputs =
+          state.inputs.firstWhere((inputObj) => inputObj.userId == car.userId);
+      var (vside, vforward) =
+          car.velocity.copy().rotatedCW(-car.direction).toRecord();
+      car.direction += userInputs.steering * car.maxSteer * vforward * dt;
 
       car.position += car.velocity * dt;
     }
