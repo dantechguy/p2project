@@ -39,6 +39,19 @@ class RacingState {
   String toString() {
     return 'state ' + [users, cars, inputs].toPrettyString(indent: '  ');
   }
+
+  RacingState.fromJson(Map<String, dynamic> json)
+      : gameTime = Duration(microseconds: json['gameTime']),
+        users = (json['users'] as List).map((e) => User.fromJson(e)).toList(),
+        cars = (json['cars'] as List).map((e) => Car.fromJson(e)).toList(),
+        inputs = (json['inputs'] as List).map((e) => UserInput.fromJson(e)).toList();
+
+  Map<String, dynamic> toJson() => {
+    'gameTime': gameTime.inMicroseconds,
+    'users': users.map((e) => e.toJson()).toList(),
+    'cars': cars.map((e) => e.toJson()).toList(),
+    'inputs': inputs.map((e) => e.toJson()).toList(),
+  };
 }
 
 // TODO: Consider merging [User] and [UserInput].
@@ -64,6 +77,17 @@ class User {
     return 'user\n' +
         'id: $id\ndisplayName: $displayName\nconnected: $connected'.indent(1);
   }
+
+  User.fromJson(Map<String, dynamic> json)
+      : displayName = json['displayName'],
+        id = json['id'],
+        connected = json['connected'];
+
+  Map<String, dynamic> toJson() => {
+    'displayName': displayName,
+    'id': id,
+    'connected': connected,
+  };
 }
 
 // TODO: Just because this is the current model, doesn't mean the physics can't later change.
@@ -97,6 +121,17 @@ class UserInput {
         'id: $userId\naccelerating: $accelerating\nsteering: $steering'
             .indent(1);
   }
+
+  UserInput.fromJson(Map<String, dynamic> json)
+      : userId = json['userId'],
+        accelerating = json['accelerating'],
+        steering = json['steering'];
+
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'accelerating': accelerating,
+    'steering': steering,
+  };
 }
 
 class Car {
@@ -152,4 +187,31 @@ class Car {
         'userId: $userId\nposition: $position\nvelocity: $velocity\ndirection: $direction\nmass: $mass\ndragCoefficient: $forwardDragCoefficient\nmaxAcceleration: $maxAcceleration\nmaxSteer: $maxSteer\nsize: $size\ncol: $col'
             .indent(1);
   }
+
+  Car.fromJson(Map<String, dynamic> json)
+      : userId = json['userId'],
+        position = Vector2(json['position'][0], json['position'][1]),
+        velocity = Vector2(json['velocity'][0], json['velocity'][1]),
+        direction = json['direction'],
+        mass = json['mass'],
+        forwardDragCoefficient = json['forwardDragCoefficient'],
+        sideDragCoefficient = json['sideDragCoefficient'],
+        maxAcceleration = json['maxAcceleration'],
+        maxSteer = json['maxSteer'],
+        size = Size(json['size'][0], json['size'][1]),
+        col = Color(json['col']);
+
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'position': position.toList(),
+    'velocity': velocity.toList(),
+    'direction': direction,
+    'mass': mass,
+    'forwardDragCoefficient': forwardDragCoefficient,
+    'sideDragCoefficient': sideDragCoefficient,
+    'maxAcceleration': maxAcceleration,
+    'maxSteer': maxSteer,
+    'size': [size.width, size.height],
+    'col': col.value,
+  };
 }
