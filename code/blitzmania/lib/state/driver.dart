@@ -20,20 +20,20 @@ RacingState drive(RacingState env, List<EventClientInInCore<String>> events) {
 void driveInplace(RacingState state, List<EventClientInInCore<String>> events) {
   for (final event in events) {
     if (event.data == 'tick') {
-      driverCompute(state, event);
-    } else if (event.data.startsWith('input:')) {
-      driverInputs(state, event);
+      updateCompute(state, event);
+    } else if (event.data.startsWith('i')) {
+      updateInputs(state, event);
     } else if (event.data.startsWith('connected:') ||
         event.data.startsWith('disconnected:')) {
-      clientConnectDisconnect(state, event);
+      updateClientConnectDisconnect(state, event);
     } else {
       print('ERROR: invalid event. Not handled!');
-      throw 'Invalid event. Not handled!!';
+      throw 'Invalid event. Not handled! ${event.data}';
     }
   }
 }
 
-void clientConnectDisconnect(
+void updateClientConnectDisconnect(
     RacingState state, EventClientInInCore<String> event) {
   final clientID = int.parse(event.data.splitAfterFirst(':'));
   if (event.data.startsWith('connected:')) {
@@ -45,11 +45,11 @@ void clientConnectDisconnect(
         velocity: Vector2.zero(),
         direction: 0,
         mass: 10,
-        forwardDragCoefficient: 0.8,
-        sideDragCoefficient: 0.1,
-        maxAcceleration: 50,
+        forwardDragCoefficient: 0.7,
+        sideDragCoefficient: 0.05,
+        maxAcceleration: 70,
         maxSteer: 0.1,
-        size: const Size(3, 6),
+        size: const Size(1, 2),
         col: Color(((clientID * 123456) & 0xFFFFFF).toInt()).withOpacity(1.0)));
     state.inputs.add(UserInput(userId: clientID, accelerating: 0, steering: 0));
   } else if (event.data.startsWith('disconnected:')) {
@@ -59,15 +59,15 @@ void clientConnectDisconnect(
   }
 }
 
-void driverInputs(RacingState state, EventClientInInCore<String> event) {
+void updateInputs(RacingState state, EventClientInInCore<String> event) {
   try {
-    if (event.data.startsWith('input:steering:')) {
-      final steering = double.parse(event.data.split(':')[2]);
+    if (event.data.startsWith('is:')) {
+      final steering = double.parse(event.data.split(':')[1]);
       state.inputs
           .firstWhere((inputObj) => inputObj.userId == event.senderID)
           .steering = steering;
-    } else if (event.data.startsWith('input:acceleration:')) {
-      final acceleration = double.parse(event.data.split(':')[2]);
+    } else if (event.data.startsWith('ia:')) {
+      final acceleration = double.parse(event.data.split(':')[1]);
       state.inputs
           .firstWhere((inputObj) => inputObj.userId == event.senderID)
           .accelerating = acceleration;
@@ -78,7 +78,7 @@ void driverInputs(RacingState state, EventClientInInCore<String> event) {
   }
 }
 
-void driverCompute(RacingState state, EventClientInInCore<String> event) {
+void updateCompute(RacingState state, EventClientInInCore<String> event) {
   final dt = (event.generatedTimestamp - state.gameTime).inSecondsReal;
   state.gameTime = event.generatedTimestamp;
 

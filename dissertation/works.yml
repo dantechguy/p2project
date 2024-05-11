@@ -1,0 +1,272 @@
+dart-numbers:
+  type: web
+  title: Numbers in Dart
+  author: Dart Team
+  url: 
+    value: https://dart.dev/guides/language/numbers
+    # date: 
+
+flutter-impeller:
+  type: web
+  title: Impeller rendering engine
+  author: Flutter Team
+  url:
+    value: https://docs.flutter.dev/perf/impeller
+    # date:
+
+security-in-computer-games:
+  type: report
+  title: "Security in Computer Games: from Pong to Online Poker"
+  author: Jeff Yan and Brian Randell
+  date: 2005-02
+  url: https://api.semanticscholar.org/CorpusID:10329044
+
+irdeto-global-gaming-survey:
+  type: report
+  title: "Irdeto Global Gaming Survey: The Last Checkpoint for Cheating"
+  author: Irdeto
+  date: 2018
+  url: https://resources.irdeto.com/media/irdeto-global-gaming-survey-report
+
+bungie-destiny-lawsuit:
+  type: article
+  title: Bungie & Destiny 2 Cheat Creator Agree $13.5m Copyright Damages Judgment
+  author: Andy Maxwell
+  date: 2022-05-10
+  url: https://torrentfreak.com/bungie-destiny-2-cheat-creator-agree-13-5m-damages-judgment-220610/
+
+china-cheating-empire-arrested:
+  type: article
+  title: Inside The ‘World’s Largest’ Video Game Cheating Empire
+  author: Lorenzo Franceschi-Bicchierai
+  date: 2021-05-01
+  url: https://www.vice.com/en/article/93ywj3/inside-the-worlds-largest-video-game-cheating-empire
+
+networking-online-games:
+  type: book
+  title: "Networking and Online Games: Understanding and Engineering Multiplayer Internet Games"
+  author: ["Armitage, G.", "Claypool, M.", "Branch, P."]
+  date: 2006-06
+  serial-number:
+    isbn: "9780470018576"
+    doi: "10.1002/047003047X"
+
+game-engines-steam:
+  type: article
+  title: "Game engines on Steam: The definitive breakdown"
+  author: ["Lars Doucet", "Anthony Pecorella"]
+  date: 2021-09-02
+  url:
+    value: https://www.gamedeveloper.com/business/game-engines-on-steam-the-definitive-breakdown
+    # date: 
+
+flutter-2023-strategy:
+  type: report
+  author: Flutter Team
+  title: Flutter 2023 Strategy
+  date: 2023-03-30
+  url:
+    value: https://flutter.dev/go/strategy-2023
+    # date:
+
+flutter-most-popular-sdk:
+  type: blog
+  author: Theodoros Karasavvas
+  title: Why Flutter is the most popular cross-platform mobile SDK
+  date: 2022-02-21
+  url:
+    value: https://stackoverflow.blog/2022/02/21/why-flutter-is-the-most-popular-cross-platform-mobile-sdk/
+    # date:
+
+dart-docs:
+  type: reference
+  title: Dart documentation
+  url:
+    value: https://dart.dev/guides
+    # date:
+
+flutter-docs:
+  type: reference
+  title: Flutter documentation
+  url:
+    value: https://docs.flutter.dev/
+    # date:
+
+dart-sdk-license:
+  type: repository
+  title: LICENSE
+  url:
+    value: https://github.com/dart-lang/sdk/blob/main/LICENSE
+    # date:
+
+flutter-sdk-license:
+  type: repository
+  title: LICENSE
+  url:
+    value: https://github.com/flutter/flutter/blob/master/LICENSE
+    # date:
+
+dart-async-license:
+  type: repository
+  title: LICENSE
+  url:
+    value: https://github.com/dart-lang/async/blob/master/LICENSE
+    # date:
+
+web-socket-channel-license:
+  type: repository
+  title: LICENSE
+  url:
+    value: https://github.com/dart-lang/web_socket_channel/blob/master/LICENSE
+    # date:
+
+minecraft-networking-model:
+  type: reference
+  title: Classic server protocol
+  url:
+    https://minecraft.fandom.com/wiki/Classic_server_protocol#Client_%E2%86%92_Server_packets
+    # date:
+
+source-engine-networking-model:
+  type: reference
+  title: Source Multiplayer Networking
+  url:
+    value: https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking
+    # date:
+
+roblox-networking-model:
+  type: reference
+  title: Client-Server Runtime
+  url:
+    value: https://create.roblox.com/docs/projects/client-server
+    # date:
+
+overwatch-gdc-talk:
+  type: video
+  title: Overwatch Gameplay Architecture and Netcode
+  author: Timothy Ford
+  date: 2017
+  url:
+    value: https://www.gdcvault.com/play/1024001/-Overwatch-Gameplay-Architecture-and
+    # date:
+
+roblox-earnings-call-transcript:
+  type: article
+  title: Roblox (RBLX) Q4 2022 Earnings Call Transcript
+  url:
+    value: https://www.fool.com/earnings/call-transcripts/2023/02/15/roblox-rblx-q4-2022-earnings-call-transcript/
+    # date:
+
+mario-kart-8-nat:
+  type: reference
+  title: Compatability Between NAT types
+  url:
+    value: https://en-americas-support.nintendo.com/app/answers/detail/a_id/12472/~/compatibility-between-nat-types
+    # date:
+
+doom-networking-model:
+  type: reference
+  title: Doom networking component
+  url:
+    value: https://doom.fandom.com/wiki/Doom_networking_component#Multiplayer_component
+    # date:
+
+lockstep:
+  type: article
+  title: Cheat-proof playout for centralized and peer-to-peer gaming
+  author: ["Baughman, Nathaniel E", "Liberatore, Marc", "Levine, Brian Neil"]
+  date: 2007
+
+rollback-networking-p2p:
+  type: article
+  title: "Rollback Networking in Peer-to-Peer Games"
+  author: Cameron Cohu
+  date: 2021-02-26
+  url:
+    value: https://cameroncohu.com/wp-content/uploads/2021/05/Rollback-Networking-in-Peer-to-Peer-Video-Games.pdf
+    # date:
+
+reddit-unity-netcode-survey:
+  type: web
+  title: What's the 'best' networking solution for Unity? UNet, Photon/Bolt/Fusion, Mirror, Netcode for GOs?
+  date: 2022-12-20
+  url:
+    value: https://www.reddit.com/r/Unity3D/comments/zqpr0c/whats_the_best_networking_solution_for_unity_unet/
+    # date:
+
+unity-netcode-gameobjects:
+  type: reference
+  title: About Netcode for GameObjects
+  url:
+    value: https://docs-multiplayer.unity3d.com/netcode/current/about/
+    # date:
+
+unity-netcode-entities:
+  type: reference
+  title: Unity Netcode for Entities
+  url:
+    value: https://docs.unity3d.com/Packages/com.unity.netcode@1.0/manual/index.html
+    # date:
+
+unreal-networking-multiplayer:
+  type: reference
+  title: Unreal Engine Networking and Multiplayer
+  url:
+    value: https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine
+    # date:
+
+bevy-homepage:
+  type: web
+  title: Bevy Engine
+  url:
+    value: https://bevyengine.org/
+    # date:
+
+bevy-replication-rfc:
+  type: article
+  title: Networked Replication
+  url:
+    value: https://github.com/bevyengine/rfcs/pull/19
+    # date:
+
+ggpo-homepage:
+  type: web
+  title: GGPO | Rollback Networking SDK for Peer-to-Peer Games
+  url:
+    value: https://ggpo.net/
+    # date:
+
+game-creators-club-homepage:
+  type: web
+  title: Game Creators Club
+  url:
+    value: https://gamecreatorsclub.com/
+    # date:
+
+quickgame-smr-rollback:
+  type: blog
+  title: Deterministic Lockstep Games With Rollback For The Web
+  url:
+    value: https://www.gamecreatorsclub.com/blog/deterministic-lockstep
+    # date:
+
+concurrent-distributed-systems-tripos:
+  type: misc
+  title: Concurrent and Distributed Systems, University of Cambridge Computer Science Tripos Part 1B
+  url:
+    value: https://www.cl.cam.ac.uk/teaching/2324/ConcDisSys/materials.html
+    # date:
+
+wireshark-homepage:
+  type: web
+  title: Wireshark · Go Deep
+  url:
+    value: https://www.wireshark.org/
+    # date:
+
+flutter-profiler:
+  type: web
+  title: Flutter performance profiling
+  url:
+    value: https://docs.flutter.dev/perf/ui-performance
+    # date:

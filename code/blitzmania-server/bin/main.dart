@@ -1,10 +1,12 @@
 // server.dart
 
+import 'dart:async';
+
 import 'package:blitz/server.dart';
 import 'package:blitzmania_server/dart_extensions.dart';
 
 void main() async {
-  final unstablePeriod = Duration(seconds: 1);
+  final unstablePeriod = Duration(seconds: 2);
 
   final gameStartTime = DateTime.now().toUtc();
   final eventIDGen = UniqueIntIDGenerator();
@@ -18,6 +20,7 @@ void main() async {
     generateUserID: playerIDGen.generateUniqueID,
     onClientConnect: connectDisconnectEvents.sendClientConnectedEvent,
     onClientDisconnect: connectDisconnectEvents.sendClientDisconnectedEvent,
+    // artificialLatency: Duration(milliseconds: 100),
   );
   final initDataServer = InitialisationDataServer(
       getData: (clientID) => {
@@ -63,6 +66,7 @@ void main() async {
   networkingServer.listenToDataForClients(outData);
 
   serverCore.init();
+
 }
 
 //

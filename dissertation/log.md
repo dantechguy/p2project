@@ -991,3 +991,111 @@ Made tick driver wrapper.
 
 # 2024/4/7
 Just thought about what if a client joins late, does the tick engine get up to speed properly? Answer is yes, because of the 'catch up' part of the tick generator module.
+
+# 2024/4/8
+The error bug may be because of the random tick:10000 that appears, even after all the other ticks have been generated.
+
+First MVP working. I am so happy.
+
+To pass computeDriver the deltaTime, I've baked it in. However if you had properly separated out input and tick wrapper modules from the driver, you could supply it there.
+
+# 2024/4/9
+I fixed the driver, and made the extrapolator and smoother.
+
+Currently working on the Re-Connection module.
+|
+Current issue is making sure the data that init_data, stream_split_buffer, and reconnection modules all align. What if we mark the time at which each client connected. Then each module refers to that to know what data to send? 
+
+# 2024/4/10
+Time warping. A single client's perspective at any given time is not given *just* by the last server event they received. Local events change it slightly. There are two cases:
+|
+First, local events which the server accepted. These will appear in their state, at generation time, not in the order at which they arrived on other clients.
+|
+Second, local events which the server dropped. The other clients will not know about these. The only cases when this will happen is if the client had a lag spike, or sent malicious events. In either cases, we provide no guarantees for those clients, so it's okay.
+
+For the Re-Connection module, I think it works best if the init_state and events since API for late joining players is done within the init_state module, before the live event flow properly starts.
+|
+This solves problems with trying to synchronise new events with past ones. Ah wait, that doesn't solve the problem. The problem is knowing up to what point 'events since' should include, and which events should be sent live afterwards.
+|
+As long as the init_data module can get access to the exact list of events *up to* when the client was added to the event stream, it's fine. We just have to know when the client was added. This should all be done in one synchronous function.
+
+# 2024/4/12
+Diss writeup. Consider mentioning that simply using this technology is not enough. The parameters must be tuned to meet the game's specific needs. Battlefield 4 blog post discusses some of this https://battlelog.battlefield.com/bf4/news/view/addressing-netcode-in-bf4/.
+|
+Adding input delay can better the user experience.
+
+# 2024/4/16
+Selecting Flutter from all the technologies:
+- I gathered a starting list of cross-platform development frameworks
+  - StackOverflow Dev Survey 2021-2023. Got all cross-platform developement frameworks
+    - spring
+    - flutter
+    - react native
+    - electron
+    - openGL
+    - qt
+    - swift ui
+    - xamarin
+    - ionic
+    - gtk
+    - cordova
+    - .net maui
+    - tauri
+    - capacitor
+    - mfc
+    - uno platform
+  - Then from SteamDB I chose the top 10 most popular detected game engines
+    - unity
+    - unreal engine
+    - GameMaker
+    - RPGMaker
+    - PyGame
+    - RenPy
+    - Godot
+    - XNA
+    - Cocos
+    - Adobe Air
+  - Finally from Itch.io I got the top 10 most popular reported game engines
+    - unity (dup)
+    - construct
+    - godot (dup)
+    - GameMaker (dup)
+    - twine
+    - bitsy
+    - Unreal engine (dup)
+    - RPG Maker (dup)
+    - PICO-8
+    - RenPy
+  - This left me with 29 starting possible technologies.
+    - [ ] spring
+    - [ ] flutter
+    - [x] react native
+    - [x] electron
+    - [ ] qt
+    - [x] swift ui
+    - [x] xamarin
+    - [x] ionic
+    - [x] gtk
+    - [x] cordova
+    - [ ] .net maui
+    - [x] tauri
+    - [x] capacitor
+    - [x] mfc
+    - [x] uno platform
+    - [x] unity
+    - [x] unreal engine
+    - [x] GameMaker
+    - [x] RPGMaker
+    - [x] PyGame
+    - [x] RenPy
+    - [x] Godot
+    - [ ] XNA
+    - [x] Cocos
+    - [x] Adobe Air
+    - [x] construct
+    - [x] twine
+    - [x] bitsy
+    - [x] PICO-8
+
+# 2024/5/2
+Fixed tick generator, as the tick period callback was diverging from the game time, leading to input delay.
